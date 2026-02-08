@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.Interfaces;
+﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
 namespace GymManagementSystem.Application.Services
@@ -11,29 +12,85 @@ namespace GymManagementSystem.Application.Services
         {
             _repository = repository;
         }
-        public async Task<List<MembershipPlan>> GetAllPlansAsync()
-        {
-            return await _repository.GetAllAsync();
-        }
 
-        public async Task<MembershipPlan?> GetPlanByIdAsync(int id)
+        public async Task<List<MembershipPlanDto>> GetAllPlansAsync()
         {
-            return await _repository.GetByIdAsync(id);
-        }
+            var plans = await _repository.GetAllAsync();
 
-        public async Task<int> CreatePlanAsync(MembershipPlan plan)
-        {
-            if (plan.Price <= 0)
+            return plans.Select(p => new MembershipPlanDto
             {
+                Id = p.Id,
+                Name = p.Name,
+                Price = p.Price,
+                DurationInDays = p.DurationInDays,
+                Description = p.Description,
+                GymId = p.GymId,
+                GymName = p.Gym != null ? p.Gym.Name : "No Gym Assigned"
+            }).ToList();
+        }
+
+        public async Task<MembershipPlanDto?> GetPlanByIdAsync(int id)
+        {
+            var plan = await _repository.GetByIdAsync(id);
+            if (plan == null) return null;
+
+            return new MembershipPlanDto
+            {
+                Id = plan.Id,
+                Name = plan.Name,
+                Price = plan.Price,
+                DurationInDays = plan.DurationInDays,
+                Description = plan.Description,
+                GymId = plan.GymId,
+                GymName = plan.Gym != null ? plan.Gym.Name : "No Gym Assigned"
+            };
+        }
+
+        public async Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto)
+        {
+            if (planDto.Price <= 0)
                 throw new Exception("Price must be greater than zero!");
-            }
 
-            if (string.IsNullOrEmpty(plan.Description))
+            var newPlan = new MembershipPlan
             {
-                throw new Exception("Description is required.");
-            }
-            return await _repository.AddAsync(plan);
+                Name = planDto.Name,
+                Price = planDto.Price,
+                DurationInDays = planDto.DurationInDays,
+                Description = planDto.Description,
+                GymId = planDto.GymId
+            };
+            var createdPlan = await _repository.AddAsync(newPlan);
+            return new MembershipPlanDto
+            {
+                Id = createdPlan.Id,
+                Name = createdPlan.Name,
+                Price = createdPlan.Price,
+                DurationInDays = createdPlan.DurationInDays,
+                Description = createdPlan.Description,
+                GymId = createdPlan.GymId
+            };
+        }
+        public async Task<bool> UpdatePlanAsync(int id, CreateMembershipPlanDto planDto)
+        {
+            var existingPlan = await _repository.GetByIdAsync(id);
+
+            if (existingPlan == null) return false;
+            existingPlan.Name = planDto.Name;
+            existingPlan.Price = planDto.Price;
+            existingPlan.DurationInDays = planDto.DurationInDays;
+            existingPlan.Description = planDto.Description;
+            existingPlan.GymId = planDto.GymId;
+
+            await _repository.UpdateAsync(existingPlan);
+            return true;
         }
 
+        public async Task<bool> DeletePlanAsync(int id)
+        {
+            var existingPlan = await _repository.GetByIdAsync(id);
+            if (existingPlan == null) return false;
+            await _repository.DeleteAsync(id);
+            return true;
+        }
     }
 }

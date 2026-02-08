@@ -1,4 +1,4 @@
-﻿namespace GymManagementSystem.Api.DTOs
+﻿namespace GymManagementSystem.Application.DTOs
 {
     public class GymDto
     {

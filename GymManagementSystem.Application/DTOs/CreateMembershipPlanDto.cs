@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace GymManagementSystem.Api.DTOs
+namespace GymManagementSystem.Application.DTOs
 {
     public class CreateMembershipPlanDto
     {

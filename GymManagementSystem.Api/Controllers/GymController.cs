@@ -1,4 +1,4 @@
-﻿using GymManagementSystem.Api.DTOs;
+﻿using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;

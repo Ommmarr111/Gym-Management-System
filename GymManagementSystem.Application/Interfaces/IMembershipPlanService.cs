@@ -1,12 +1,15 @@
-﻿using GymManagementSystem.Domain.Entities;
+﻿using GymManagementSystem.Application.DTOs;
 
 namespace GymManagementSystem.Application.Interfaces
 {
     public interface IMembershipPlanService
     {
-        Task<List<MembershipPlan>> GetAllPlansAsync();
-        Task<MembershipPlan?> GetPlanByIdAsync(int id);
-        Task<int> CreatePlanAsync(MembershipPlan plan);
+        Task<List<MembershipPlanDto>> GetAllPlansAsync();
 
+        Task<MembershipPlanDto?> GetPlanByIdAsync(int id);
+
+        Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto);
+        Task<bool> UpdatePlanAsync(int id, CreateMembershipPlanDto planDto);
+        Task<bool> DeletePlanAsync(int id);
     }
 }

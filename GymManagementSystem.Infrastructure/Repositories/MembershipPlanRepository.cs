@@ -23,14 +23,15 @@ namespace GymManagementSystem.Infrastructure.Repositories
 
         public async Task<MembershipPlan?> GetByIdAsync(int id)
         {
-            return await _context.MembershipPlans.FindAsync(id);
+            return await _context.MembershipPlans
+                .Include(p => p.Gym)
+                .FirstOrDefaultAsync(p => p.Id == id);
         }
-
-        public async Task<int> AddAsync(MembershipPlan plan)
+        public async Task<MembershipPlan> AddAsync(MembershipPlan plan)
         {
             await _context.MembershipPlans.AddAsync(plan);
             await _context.SaveChangesAsync();
-            return plan.Id;
+            return plan;
         }
 
         public async Task UpdateAsync(MembershipPlan plan)
@@ -44,7 +45,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
             var plan = await _context.MembershipPlans.FindAsync(id);
             if (plan != null)
             {
-                // Soft Delete
                 plan.IsDeleted = true;
                 await _context.SaveChangesAsync();
             }
