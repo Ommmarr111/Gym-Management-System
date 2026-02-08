@@ -74,6 +74,12 @@ namespace GymManagementSystem.Api
             // GYM SERVICES
             builder.Services.AddScoped<IGymRepository, GymRepository>();
             builder.Services.AddScoped<IGymService, GymService>();
+            // MEMBER SERVICES
+            builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+            builder.Services.AddScoped<IMemberService, MemberService>();
+            // SUBSCRIPTION SERVICES
+            builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+            builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
             // AUTH SERVICES
             builder.Services.AddScoped<IAuthService, AuthService>();
 

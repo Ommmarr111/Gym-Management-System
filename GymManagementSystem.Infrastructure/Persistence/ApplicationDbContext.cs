@@ -16,15 +16,17 @@ namespace GymManagementSystem.Infrastructure.Persistence
         public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
         public DbSet<Exercise> Exercises { get; set; }
 
+        public DbSet<Member> Members { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
             builder.Entity<Subscription>(entity =>
             {
                 entity.Property(s => s.AmountPaid).HasColumnType("decimal(18,2)");
-                entity.HasOne(s => s.User)
-                      .WithMany(u => u.Subscriptions)
-                      .HasForeignKey(s => s.UserId)
+                entity.HasOne(s => s.Member)
+                      .WithMany()
+                      .HasForeignKey(s => s.MemberId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
             builder.Entity<MembershipPlan>(entity =>
