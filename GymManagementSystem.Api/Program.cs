@@ -80,6 +80,9 @@ namespace GymManagementSystem.Api
             // SUBSCRIPTION SERVICES
             builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+            // ATTENDANCE SERVICES
+            builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+            builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
             // AUTH SERVICES
             builder.Services.AddScoped<IAuthService, AuthService>();
 

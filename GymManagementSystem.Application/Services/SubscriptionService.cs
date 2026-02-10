@@ -19,7 +19,6 @@ namespace GymManagementSystem.Application.Services
             _planRepo = planRepo;
             _memberRepo = memberRepo;
         }
-
         public async Task<SubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto dto)
         {
             var member = await _memberRepo.GetByIdAsync(dto.MemberId);
@@ -50,15 +49,12 @@ namespace GymManagementSystem.Application.Services
                 Id = subscription.Id,
                 MemberId = subscription.MemberId,
                 MemberName = $"{member.FirstName} {member.LastName}",
-                MembershipPlanId = subscription.MembershipPlanId,
                 PlanName = plan.Name,
-                PricePaid = subscription.AmountPaid,
-                StartDate = subscription.StartDate,
-                EndDate = subscription.EndDate,
-                Status = subscription.Status
+                Price = subscription.AmountPaid,
+                Status = subscription.Status,
+                EndDate = subscription.EndDate.ToString("yyyy-MM-dd")
             };
         }
-
         public async Task<List<SubscriptionDto>> GetAllSubscriptionsAsync()
         {
             var subs = await _subscriptionRepo.GetAllAsync();
@@ -68,15 +64,12 @@ namespace GymManagementSystem.Application.Services
                 Id = s.Id,
                 MemberId = s.MemberId,
                 MemberName = s.Member != null ? $"{s.Member.FirstName} {s.Member.LastName}" : "Unknown",
-                MembershipPlanId = s.MembershipPlanId,
                 PlanName = s.MembershipPlan != null ? s.MembershipPlan.Name : "Unknown",
-                PricePaid = s.AmountPaid,
-                StartDate = s.StartDate,
-                EndDate = s.EndDate,
-                Status = s.Status
+                Price = s.AmountPaid,
+                Status = s.Status,
+                EndDate = s.EndDate.ToString("yyyy-MM-dd")
             }).ToList();
         }
-
         public async Task<SubscriptionDto?> GetSubscriptionByIdAsync(int id)
         {
             var s = await _subscriptionRepo.GetByIdAsync(id);
@@ -87,13 +80,23 @@ namespace GymManagementSystem.Application.Services
                 Id = s.Id,
                 MemberId = s.MemberId,
                 MemberName = s.Member != null ? $"{s.Member.FirstName} {s.Member.LastName}" : "Unknown",
-                MembershipPlanId = s.MembershipPlanId,
                 PlanName = s.MembershipPlan != null ? s.MembershipPlan.Name : "Unknown",
-                PricePaid = s.AmountPaid,
-                StartDate = s.StartDate,
-                EndDate = s.EndDate,
-                Status = s.Status
+                Price = s.AmountPaid,
+                Status = s.Status,
+                EndDate = s.EndDate.ToString("yyyy-MM-dd")
             };
+        }
+        public async Task<bool> CancelSubscriptionAsync(int subscriptionId)
+        {
+            var sub = await _subscriptionRepo.GetByIdAsync(subscriptionId);
+            if (sub == null)
+                throw new Exception("Subscription not found.");
+
+            if (sub.Status == "Cancelled")
+                throw new Exception("Subscription is already cancelled.");
+
+            await _subscriptionRepo.UpdateStatusAsync(subscriptionId, "Cancelled");
+            return true;
         }
     }
 }

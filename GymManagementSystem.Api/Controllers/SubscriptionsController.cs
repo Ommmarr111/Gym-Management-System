@@ -50,5 +50,19 @@ namespace GymManagementSystem.Api.Controllers
 
             return Ok(sub);
         }
+
+        [HttpPost("cancel/{id}")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            try
+            {
+                await _service.CancelSubscriptionAsync(id);
+                return Ok(new { Message = "Subscription cancelled successfully. 🚫" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+        }
     }
 }

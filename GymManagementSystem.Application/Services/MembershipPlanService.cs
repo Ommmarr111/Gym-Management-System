@@ -70,27 +70,26 @@ namespace GymManagementSystem.Application.Services
                 GymId = createdPlan.GymId
             };
         }
-        public async Task<bool> UpdatePlanAsync(int id, CreateMembershipPlanDto planDto)
+        public async Task UpdatePlanAsync(int id, UpdateMembershipPlanDto dto)
         {
-            var existingPlan = await _repository.GetByIdAsync(id);
+            var plan = await _repository.GetByIdAsync(id);
+            if (plan == null)
+                throw new Exception("Membership Plan not found.");
 
-            if (existingPlan == null) return false;
-            existingPlan.Name = planDto.Name;
-            existingPlan.Price = planDto.Price;
-            existingPlan.DurationInDays = planDto.DurationInDays;
-            existingPlan.Description = planDto.Description;
-            existingPlan.GymId = planDto.GymId;
+            // تحديث البيانات
+            plan.Name = dto.Name;
+            plan.Price = dto.Price;
+            plan.DurationInDays = dto.DurationInDays;
 
-            await _repository.UpdateAsync(existingPlan);
-            return true;
+            await _repository.UpdateAsync(plan);
         }
 
-        public async Task<bool> DeletePlanAsync(int id)
+        public async Task DeletePlanAsync(int id)
         {
-            var existingPlan = await _repository.GetByIdAsync(id);
-            if (existingPlan == null) return false;
+            var plan = await _repository.GetByIdAsync(id);
+            if (plan == null)
+                throw new Exception("Membership Plan not found.");
             await _repository.DeleteAsync(id);
-            return true;
         }
     }
 }

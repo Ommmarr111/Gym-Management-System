@@ -51,28 +51,38 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] CreateMembershipPlanDto request)
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateMembershipPlanDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var updated = await _service.UpdatePlanAsync(id, request);
-
-            if (!updated)
-                return NotFound($"Plan with ID {id} not found.");
-
-            return NoContent();
+            try
+            {
+                await _service.UpdatePlanAsync(id, dto);
+                return Ok(new { Message = "Plan updated successfully! ✅" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var deleted = await _service.DeletePlanAsync(id);
-
-            if (!deleted)
-                return NotFound($"Plan with ID {id} not found.");
-
-            return NoContent();
+            try
+            {
+                await _service.DeletePlanAsync(id);
+                return Ok(new { Message = "Plan deleted successfully! 🗑️" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Error = "Cannot delete this plan because it has active subscriptions or other dependencies. ⛔",
+                    ex.Message
+                });
+            }
         }
     }
 }

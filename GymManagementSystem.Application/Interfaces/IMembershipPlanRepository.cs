@@ -11,5 +11,6 @@ namespace GymManagementSystem.Application.Interfaces
 
         Task UpdateAsync(MembershipPlan plan);
         Task DeleteAsync(int id);
+
     }
 }

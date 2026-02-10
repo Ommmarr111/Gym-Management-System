@@ -15,7 +15,7 @@ namespace GymManagementSystem.Infrastructure.Persistence
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
         public DbSet<Exercise> Exercises { get; set; }
-
+        public DbSet<Attendance> Attendances { get; set; }
         public DbSet<Member> Members { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -32,6 +32,17 @@ namespace GymManagementSystem.Infrastructure.Persistence
             builder.Entity<MembershipPlan>(entity =>
             {
                 entity.Property(p => p.Price).HasColumnType("decimal(18,2)");
+            });
+            builder.Entity<Attendance>(entity =>
+            {
+                entity.HasOne(a => a.Member)
+                      .WithMany()
+                      .HasForeignKey(a => a.MemberId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(a => a.Gym)
+                      .WithMany()
+                      .HasForeignKey(a => a.GymId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
             builder.Entity<Gym>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<MembershipPlan>().HasQueryFilter(x => !x.IsDeleted);

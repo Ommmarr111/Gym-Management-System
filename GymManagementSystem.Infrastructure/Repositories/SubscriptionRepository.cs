@@ -43,8 +43,18 @@ namespace GymManagementSystem.Infrastructure.Repositories
             return await _context.Subscriptions
                 .Where(s => s.MemberId == memberId)
                 .Include(s => s.MembershipPlan)
+                .Include(s => s.Member)
                 .OrderByDescending(s => s.StartDate)
                 .ToListAsync();
+        }
+        public async Task UpdateStatusAsync(int subscriptionId, string newStatus)
+        {
+            var sub = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (sub != null)
+            {
+                sub.Status = newStatus;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }
