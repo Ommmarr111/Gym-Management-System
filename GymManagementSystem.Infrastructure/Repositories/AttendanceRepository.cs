@@ -33,8 +33,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<List<Attendance>> GetByMemberIdAsync(int memberId)
         {
             return await _context.Attendances
-                .Where(a => a.MemberId == memberId)
+                .IgnoreQueryFilters()
                 .Include(a => a.Gym)
+                .Include(a => a.Member)
+                .Where(a => a.MemberId == memberId)
                 .OrderByDescending(a => a.CheckInTime)
                 .ToListAsync();
         }

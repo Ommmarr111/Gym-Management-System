@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.Interfaces;
+﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
 namespace GymManagementSystem.Application.Services
@@ -30,6 +31,29 @@ namespace GymManagementSystem.Application.Services
             }
 
             return await _repository.AddAsync(gym);
+
         }
+        public async Task UpdateGymAsync(int id, UpdateGymDto dto)
+        {
+            var gym = await _repository.GetByIdAsync(id);
+            if (gym == null)
+                throw new Exception("Gym not found.");
+
+            gym.Name = dto.Name;
+            gym.Address = dto.Address;
+            gym.PhoneNumber = dto.PhoneNumber;
+
+            await _repository.UpdateAsync(gym);
+        }
+
+        public async Task DeleteGymAsync(int id)
+        {
+            var gym = await _repository.GetByIdAsync(id);
+            if (gym == null)
+                throw new Exception("Gym not found.");
+
+            await _repository.DeleteAsync(id);
+        }
+
     }
 }

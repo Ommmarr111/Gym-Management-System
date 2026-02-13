@@ -22,6 +22,12 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<AttendanceDto> CheckInAsync(CheckInDto dto)
         {
+            var currentGym = await _gymRepo.GetByIdAsync(dto.GymId);
+
+            if (currentGym == null || currentGym.IsDeleted)
+            {
+                throw new Exception("This Gym is currently closed or does not exist. ⛔");
+            }
 
             var memberSubs = await _subscriptionRepo.GetByMemberIdAsync(dto.MemberId);
 

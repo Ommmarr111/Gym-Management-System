@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Domain.Entities;
+﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Domain.Entities;
 
 namespace GymManagementSystem.Application.Interfaces
 {
@@ -7,5 +8,8 @@ namespace GymManagementSystem.Application.Interfaces
         Task<List<Gym>> GetAllGymsAsync();
         Task<Gym?> GetGymByIdAsync(int id);
         Task<int> CreateGymAsync(Gym gym);
+
+        Task UpdateGymAsync(int id, UpdateGymDto dto);
+        Task DeleteGymAsync(int id);
     }
 }

@@ -31,5 +31,21 @@ namespace GymManagementSystem.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return gym.Id;
         }
+        public async Task UpdateAsync(Gym gym)
+        {
+            _context.Gyms.Update(gym);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            var gym = await _context.Gyms.FindAsync(id);
+            if (gym != null)
+            {
+                gym.IsDeleted = true;
+
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

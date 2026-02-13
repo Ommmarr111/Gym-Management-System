@@ -8,5 +8,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task<Gym?> GetByIdAsync(int id);
         Task<int> AddAsync(Gym gym);
 
+        Task UpdateAsync(Gym gym);
+        Task DeleteAsync(int id);
     }
 }

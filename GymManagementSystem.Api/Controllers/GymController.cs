@@ -1,14 +1,13 @@
 ﻿using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
 {
     [Route("api/gyms")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class GymsController : ControllerBase
     {
         private readonly IGymService _gymService;
@@ -45,6 +44,39 @@ namespace GymManagementSystem.Api.Controllers
             });
 
             return Ok(result);
+        }
+        // 1. PUT: api/Gyms/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateGymDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                await _gymService.UpdateGymAsync(id, dto);
+                return Ok(new { Message = "Gym updated successfully! ✅" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+        }
+
+        // 2. DELETE: api/Gyms/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                await _gymService.DeleteGymAsync(id);
+                return Ok(new { Message = "Gym deleted successfully! 🗑️" });
+            }
+            catch (Exception ex)
+            {
+                // رسالة توضيحية لو المسح فشل بسبب وجود بيانات مرتبطة
+                return BadRequest(new { Error = "Cannot delete this Gym. It likely has associated Members or Plans. ⛔", Message = ex.Message });
+            }
         }
     }
 }
