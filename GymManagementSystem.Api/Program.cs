@@ -1,3 +1,4 @@
+using GymManagementSystem.Api.Middleware;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Services;
 using GymManagementSystem.Domain.Entities;
@@ -86,6 +87,11 @@ namespace GymManagementSystem.Api
             // AUTH SERVICES
             builder.Services.AddScoped<IAuthService, AuthService>();
 
+            // EXCEPTION HANDLERS
+            builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+            builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -97,8 +103,11 @@ namespace GymManagementSystem.Api
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
             app.UseCors("MyPolicy");
 
+
+            app.UseExceptionHandler(opt => { });
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();

@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -49,10 +50,11 @@ namespace GymManagementSystem.Application.Services
         public async Task DeleteGymAsync(int id)
         {
             var gym = await _repository.GetByIdAsync(id);
-            if (gym == null)
-                throw new Exception("Gym not found.");
 
-            await _repository.DeleteAsync(id);
+            if (gym == null)
+                throw new GymNotFoundException(id);
+            gym.IsDeleted = true;
+            await _repository.UpdateAsync(gym);
         }
 
     }
