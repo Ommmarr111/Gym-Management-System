@@ -19,26 +19,30 @@ namespace GymManagementSystem.Application.Services
             return await _repository.GetAllAsync();
         }
 
-        public async Task<Gym?> GetGymByIdAsync(int id)
+        public async Task<Gym> GetGymByIdAsync(int id)
         {
-            return await _repository.GetByIdAsync(id);
+            var gym = await _repository.GetByIdAsync(id);
+
+            if (gym == null)
+                throw new NotFoundException($"Gym with id = {id} not found");
+
+            return gym;
         }
 
         public async Task<int> CreateGymAsync(Gym gym)
         {
             if (string.IsNullOrWhiteSpace(gym.Name))
-            {
-                throw new ArgumentException("Gym Name cannot be empty.");
-            }
+                throw new ValidationException("Gym name cannot be empty");
 
             return await _repository.AddAsync(gym);
-
         }
+
         public async Task UpdateGymAsync(int id, UpdateGymDto dto)
         {
             var gym = await _repository.GetByIdAsync(id);
+
             if (gym == null)
-                throw new Exception("Gym not found.");
+                throw new NotFoundException($"Gym with id = {id} not found");
 
             gym.Name = dto.Name;
             gym.Address = dto.Address;
@@ -52,10 +56,15 @@ namespace GymManagementSystem.Application.Services
             var gym = await _repository.GetByIdAsync(id);
 
             if (gym == null)
-                throw new GymNotFoundException(id);
+                throw new NotFoundException($"Gym with id = {id} not found");
+
+            var hasMembers = await _repository.HasMembersAsync(id);
+
+            if (hasMembers)
+                throw new BusinessRuleException($"Gym with id = {id} has members and cannot be deleted");
+
             gym.IsDeleted = true;
             await _repository.UpdateAsync(gym);
         }
-
     }
 }

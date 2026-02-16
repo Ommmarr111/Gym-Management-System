@@ -12,5 +12,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task UpdateAsync(MembershipPlan plan);
         Task DeleteAsync(int id);
 
+        Task<bool> HasActiveSubscriptionsAsync(int planId);
+
     }
 }

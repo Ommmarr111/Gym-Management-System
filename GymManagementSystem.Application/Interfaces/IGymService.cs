@@ -6,7 +6,7 @@ namespace GymManagementSystem.Application.Interfaces
     public interface IGymService
     {
         Task<List<Gym>> GetAllGymsAsync();
-        Task<Gym?> GetGymByIdAsync(int id);
+        Task<Gym> GetGymByIdAsync(int id);
         Task<int> CreateGymAsync(Gym gym);
 
         Task UpdateGymAsync(int id, UpdateGymDto dto);

@@ -5,9 +5,10 @@ namespace GymManagementSystem.Application.Interfaces
     public interface IMemberService
     {
         Task<List<MemberDto>> GetAllMembersAsync();
-        Task<MemberDto?> GetMemberByIdAsync(int id);
+
         Task<MemberDto> CreateMemberAsync(CreateMemberDto memberDto);
-        Task<bool> UpdateMemberAsync(int id, CreateMemberDto memberDto);
-        Task<bool> DeleteMemberAsync(int id);
+        Task<MemberDto> GetMemberByIdAsync(int id);
+        Task UpdateMemberAsync(int id, CreateMemberDto dto);
+        Task DeleteMemberAsync(int id);
     }
 }

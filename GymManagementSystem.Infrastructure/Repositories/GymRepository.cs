@@ -47,5 +47,11 @@ namespace GymManagementSystem.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<bool> HasMembersAsync(int gymId)
+        {
+            return await _context.Members
+                .AnyAsync(m => m.GymId == gymId && !m.IsDeleted);
+        }
     }
 }

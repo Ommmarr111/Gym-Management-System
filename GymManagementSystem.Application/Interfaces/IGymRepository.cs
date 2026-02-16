@@ -10,5 +10,7 @@ namespace GymManagementSystem.Application.Interfaces
 
         Task UpdateAsync(Gym gym);
         Task DeleteAsync(int id);
+
+        Task<bool> HasMembersAsync(int gymId);
     }
 }

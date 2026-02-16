@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -25,9 +26,7 @@ namespace GymManagementSystem.Application.Services
             var currentGym = await _gymRepo.GetByIdAsync(dto.GymId);
 
             if (currentGym == null || currentGym.IsDeleted)
-            {
-                throw new Exception("This Gym is currently closed or does not exist. ⛔");
-            }
+                throw new NotFoundException($"Gym with id = {dto.GymId} does not exist or is closed");
 
             var memberSubs = await _subscriptionRepo.GetByMemberIdAsync(dto.MemberId);
 
@@ -38,9 +37,7 @@ namespace GymManagementSystem.Application.Services
             );
 
             if (validSubscription == null)
-            {
-                throw new Exception("Access Denied: No active subscription found for this gym!");
-            }
+                throw new ForbiddenException("Access denied: no active subscription found for this gym");
 
             var attendance = new Attendance
             {
@@ -51,16 +48,14 @@ namespace GymManagementSystem.Application.Services
 
             await _attendanceRepo.AddAsync(attendance);
 
-            var gym = await _gymRepo.GetByIdAsync(dto.GymId);
-
             return new AttendanceDto
             {
                 Id = attendance.Id,
                 MemberName = validSubscription.Member != null
                     ? $"{validSubscription.Member.FirstName} {validSubscription.Member.LastName}"
                     : "Valued Member",
-                GymName = gym != null ? gym.Name : "Unknown Gym",
-                CheckInTime = attendance.CheckInTime.ToString("yyyy-MM-dd hh:mm tt") // تنسيق: 2026-02-10 07:30 PM
+                GymName = currentGym.Name,
+                CheckInTime = attendance.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
             };
         }
 

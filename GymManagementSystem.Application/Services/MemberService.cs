@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -16,7 +17,6 @@ namespace GymManagementSystem.Application.Services
         public async Task<List<MemberDto>> GetAllMembersAsync()
         {
             var members = await _repository.GetAllAsync();
-
             return members.Select(m => new MemberDto
             {
                 Id = m.Id,
@@ -30,10 +30,13 @@ namespace GymManagementSystem.Application.Services
                 GymName = m.Gym != null ? m.Gym.Name : "No Gym Name Found"
             }).ToList();
         }
-        public async Task<MemberDto?> GetMemberByIdAsync(int id)
+
+        public async Task<MemberDto> GetMemberByIdAsync(int id)
         {
             var m = await _repository.GetByIdAsync(id);
-            if (m == null) return null;
+
+            if (m == null)
+                throw new NotFoundException($"Member with id = {id} not found");
 
             return new MemberDto
             {
@@ -51,6 +54,11 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<MemberDto> CreateMemberAsync(CreateMemberDto dto)
         {
+            var emailExists = await _repository.EmailExistsAsync(dto.Email);
+
+            if (emailExists)
+                throw new BusinessRuleException($"A member with email {dto.Email} already exists");
+
             var newMember = new Member
             {
                 FirstName = dto.FirstName,
@@ -78,10 +86,12 @@ namespace GymManagementSystem.Application.Services
             };
         }
 
-        public async Task<bool> UpdateMemberAsync(int id, CreateMemberDto dto)
+        public async Task UpdateMemberAsync(int id, CreateMemberDto dto)
         {
             var existingMember = await _repository.GetByIdAsync(id);
-            if (existingMember == null) return false;
+
+            if (existingMember == null)
+                throw new NotFoundException($"Member with id = {id} not found");
 
             existingMember.FirstName = dto.FirstName;
             existingMember.LastName = dto.LastName;
@@ -91,16 +101,16 @@ namespace GymManagementSystem.Application.Services
             existingMember.GymId = dto.GymId;
 
             await _repository.UpdateAsync(existingMember);
-            return true;
         }
 
-        public async Task<bool> DeleteMemberAsync(int id)
+        public async Task DeleteMemberAsync(int id)
         {
             var existingMember = await _repository.GetByIdAsync(id);
-            if (existingMember == null) return false;
+
+            if (existingMember == null)
+                throw new NotFoundException($"Member with id = {id} not found");
 
             await _repository.DeleteAsync(id);
-            return true;
         }
     }
 }

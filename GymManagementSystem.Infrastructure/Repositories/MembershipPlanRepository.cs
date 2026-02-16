@@ -49,5 +49,11 @@ namespace GymManagementSystem.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<bool> HasActiveSubscriptionsAsync(int planId)
+        {
+            return await _context.Subscriptions
+                .AnyAsync(s => s.MembershipPlanId == planId && s.EndDate >= DateTime.Now && !s.IsDeleted);
+        }
     }
 }

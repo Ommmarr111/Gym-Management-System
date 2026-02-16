@@ -1,22 +1,22 @@
-﻿// BusinessRuleExceptionHandler.cs
-using GymManagementSystem.Api.Models;
+﻿using GymManagementSystem.Api.Models;
+using GymManagementSystem.Application.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 
-public class BusinessRuleExceptionHandler : IExceptionHandler
+public class ForbiddenExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext context,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not BusinessRuleException)
+        if (exception is not ForbiddenException)
             return false;
 
-        context.Response.StatusCode = 422;
+        context.Response.StatusCode = 403;
 
         await context.Response.WriteAsJsonAsync(new ErrorResponse
         {
-            StatusCode = StatusCodes.Status422UnprocessableEntity,
+            StatusCode = 403,
             Message = exception.Message
         }, cancellationToken);
 

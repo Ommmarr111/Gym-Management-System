@@ -1,4 +1,3 @@
-using GymManagementSystem.Api.Middleware;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Services;
 using GymManagementSystem.Domain.Entities;
@@ -89,8 +88,15 @@ namespace GymManagementSystem.Api
 
             // EXCEPTION HANDLERS
             builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+            builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
             builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
+            builder.Services.AddExceptionHandler<UnauthorizedExceptionHandler>();
+            builder.Services.AddExceptionHandler<ForbiddenExceptionHandler>();
+
+            // Global ALWAYS last
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+            builder.Services.AddProblemDetails();
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

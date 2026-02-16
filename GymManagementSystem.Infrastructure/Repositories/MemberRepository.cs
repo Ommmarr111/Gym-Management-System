@@ -51,5 +51,11 @@ namespace GymManagementSystem.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            return await _context.Members
+                .AnyAsync(m => m.Email == email && !m.IsDeleted);
+        }
     }
 }

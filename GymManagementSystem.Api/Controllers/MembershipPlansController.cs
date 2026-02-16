@@ -18,19 +18,8 @@ namespace GymManagementSystem.Api.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> CreatePlan([FromBody] CreateMembershipPlanDto request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var createdPlanDto = await _service.CreatePlanAsync(request);
-
-                return Ok(new { Message = "Plan created!", Plan = createdPlanDto });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Error = ex.Message });
-            }
+            var createdPlanDto = await _service.CreatePlanAsync(request);
+            return Ok(new { Message = "Plan created!", Plan = createdPlanDto });
         }
 
         [HttpGet("get-all")]
@@ -44,45 +33,21 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> GetPlanById(int id)
         {
             var plan = await _service.GetPlanByIdAsync(id);
-            if (plan == null)
-                return NotFound("Plan not found");
-
             return Ok(plan);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateMembershipPlanDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                await _service.UpdatePlanAsync(id, dto);
-                return Ok(new { Message = "Plan updated successfully! ✅" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Error = ex.Message });
-            }
+            await _service.UpdatePlanAsync(id, dto);
+            return Ok(new { Message = "Plan updated successfully! ✅" });
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            try
-            {
-                await _service.DeletePlanAsync(id);
-                return Ok(new { Message = "Plan deleted successfully! 🗑️" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    Error = "Cannot delete this plan because it has active subscriptions or other dependencies. ⛔",
-                    ex.Message
-                });
-            }
+            await _service.DeletePlanAsync(id);
+            return Ok(new { Message = "Plan deleted successfully! 🗑️" });
         }
     }
 }

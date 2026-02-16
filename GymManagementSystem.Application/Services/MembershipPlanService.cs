@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -16,7 +17,6 @@ namespace GymManagementSystem.Application.Services
         public async Task<List<MembershipPlanDto>> GetAllPlansAsync()
         {
             var plans = await _repository.GetAllAsync();
-
             return plans.Select(p => new MembershipPlanDto
             {
                 Id = p.Id,
@@ -32,7 +32,9 @@ namespace GymManagementSystem.Application.Services
         public async Task<MembershipPlanDto?> GetPlanByIdAsync(int id)
         {
             var plan = await _repository.GetByIdAsync(id);
-            if (plan == null) return null;
+
+            if (plan == null)
+                throw new NotFoundException($"Membership plan with id = {id} not found");
 
             return new MembershipPlanDto
             {
@@ -49,7 +51,7 @@ namespace GymManagementSystem.Application.Services
         public async Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto)
         {
             if (planDto.Price <= 0)
-                throw new Exception("Price must be greater than zero!");
+                throw new ValidationException("Price must be greater than zero!");
 
             var newPlan = new MembershipPlan
             {
@@ -59,7 +61,9 @@ namespace GymManagementSystem.Application.Services
                 Description = planDto.Description,
                 GymId = planDto.GymId
             };
+
             var createdPlan = await _repository.AddAsync(newPlan);
+
             return new MembershipPlanDto
             {
                 Id = createdPlan.Id,
@@ -70,13 +74,14 @@ namespace GymManagementSystem.Application.Services
                 GymId = createdPlan.GymId
             };
         }
+
         public async Task UpdatePlanAsync(int id, UpdateMembershipPlanDto dto)
         {
             var plan = await _repository.GetByIdAsync(id);
-            if (plan == null)
-                throw new Exception("Membership Plan not found.");
 
-            // تحديث البيانات
+            if (plan == null)
+                throw new NotFoundException($"Membership plan with id = {id} not found");
+
             plan.Name = dto.Name;
             plan.Price = dto.Price;
             plan.DurationInDays = dto.DurationInDays;
@@ -87,9 +92,17 @@ namespace GymManagementSystem.Application.Services
         public async Task DeletePlanAsync(int id)
         {
             var plan = await _repository.GetByIdAsync(id);
+
             if (plan == null)
-                throw new Exception("Membership Plan not found.");
-            await _repository.DeleteAsync(id);
+                throw new NotFoundException($"Membership plan with id = {id} not found");
+
+            var hasActiveSubs = await _repository.HasActiveSubscriptionsAsync(id);
+
+            if (hasActiveSubs)
+                throw new BusinessRuleException($"Membership plan with id = {id} has active subscriptions and cannot be deleted");
+
+            plan.IsDeleted = true;
+            await _repository.UpdateAsync(plan);
         }
     }
 }
