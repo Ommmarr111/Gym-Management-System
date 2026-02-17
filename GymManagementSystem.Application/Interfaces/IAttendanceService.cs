@@ -7,5 +7,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task<AttendanceDto> CheckInAsync(CheckInDto dto);
 
         Task<List<AttendanceDto>> GetMemberAttendanceHistoryAsync(int memberId);
+
+        Task<List<AttendanceDto>> GetGymAttendanceAsync(int gymId);
     }
 }

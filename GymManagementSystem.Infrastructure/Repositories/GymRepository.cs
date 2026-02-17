@@ -28,13 +28,12 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<int> AddAsync(Gym gym)
         {
             await _context.Gyms.AddAsync(gym);
-            await _context.SaveChangesAsync();
             return gym.Id;
         }
-        public async Task UpdateAsync(Gym gym)
+        public Task UpdateAsync(Gym gym)
         {
             _context.Gyms.Update(gym);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
 
         public async Task DeleteAsync(int id)
@@ -43,8 +42,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
             if (gym != null)
             {
                 gym.IsDeleted = true;
-
-                await _context.SaveChangesAsync();
             }
         }
 

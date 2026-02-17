@@ -7,5 +7,8 @@ namespace GymManagementSystem.Application.Interfaces
         Task<Attendance> AddAsync(Attendance attendance);
         Task<List<Attendance>> GetAllAsync();
         Task<List<Attendance>> GetByMemberIdAsync(int memberId);
+
+        Task<List<Attendance>> GetByGymIdAsync(int gymId);
+
     }
 }

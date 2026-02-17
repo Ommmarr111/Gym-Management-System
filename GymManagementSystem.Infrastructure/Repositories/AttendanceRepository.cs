@@ -17,7 +17,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<Attendance> AddAsync(Attendance attendance)
         {
             await _context.Attendances.AddAsync(attendance);
-            await _context.SaveChangesAsync();
             return attendance;
         }
 
@@ -26,6 +25,15 @@ namespace GymManagementSystem.Infrastructure.Repositories
             return await _context.Attendances
                 .Include(a => a.Member)
                 .Include(a => a.Gym)
+                .OrderByDescending(a => a.CheckInTime)
+                .ToListAsync();
+        }
+        public async Task<List<Attendance>> GetByGymIdAsync(int gymId)
+        {
+            return await _context.Attendances
+                .Include(a => a.Member)
+                .Include(a => a.Gym)
+                .Where(a => a.GymId == gymId)
                 .OrderByDescending(a => a.CheckInTime)
                 .ToListAsync();
         }

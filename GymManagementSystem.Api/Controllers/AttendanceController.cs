@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/attendance")]
     [ApiController]
     public class AttendanceController : ControllerBase
     {
@@ -15,27 +15,24 @@ namespace GymManagementSystem.Api.Controllers
             _attendanceService = attendanceService;
         }
 
-        [HttpPost("check-in")]
+        [HttpPost]
         public async Task<IActionResult> CheckIn([FromBody] CheckInDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var result = await _attendanceService.CheckInAsync(dto);
-                return Ok(new { Message = "Welcome! Access Granted ✅", Data = result });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = "Access Denied ⛔", Error = ex.Message });
-            }
+            var result = await _attendanceService.CheckInAsync(dto);
+            return Ok(result);
         }
 
-        [HttpGet("history/{memberId}")]
+        [HttpGet("{memberId}")]
         public async Task<IActionResult> GetHistory(int memberId)
         {
             var history = await _attendanceService.GetMemberAttendanceHistoryAsync(memberId);
+            return Ok(history);
+        }
+
+        [HttpGet("gym/{gymId}")]
+        public async Task<IActionResult> GetByGymId(int gymId)
+        {
+            var history = await _attendanceService.GetGymAttendanceAsync(gymId);
             return Ok(history);
         }
     }

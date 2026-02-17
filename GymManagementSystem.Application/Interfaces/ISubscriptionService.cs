@@ -9,5 +9,6 @@ namespace GymManagementSystem.Application.Interfaces
         Task<SubscriptionDto> GetSubscriptionByIdAsync(int id);
         Task CancelSubscriptionAsync(int subscriptionId);
 
+        Task<List<SubscriptionDto>> GetSubscriptionsByMemberIdAsync(int memberId);
     }
 }

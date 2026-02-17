@@ -32,14 +32,13 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<Member> AddAsync(Member member)
         {
             await _context.Members.AddAsync(member);
-            await _context.SaveChangesAsync();
             return member;
         }
 
-        public async Task UpdateAsync(Member member)
+        public Task UpdateAsync(Member member)
         {
             _context.Members.Update(member);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
 
         public async Task DeleteAsync(int id)
@@ -48,7 +47,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
             if (member != null)
             {
                 member.IsDeleted = true;
-                await _context.SaveChangesAsync();
             }
         }
 

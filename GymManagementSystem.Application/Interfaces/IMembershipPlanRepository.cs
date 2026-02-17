@@ -14,5 +14,7 @@ namespace GymManagementSystem.Application.Interfaces
 
         Task<bool> HasActiveSubscriptionsAsync(int planId);
 
+        Task<List<MembershipPlan>> GetByGymIdAsync(int gymId);
+
     }
 }

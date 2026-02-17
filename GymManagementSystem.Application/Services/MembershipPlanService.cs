@@ -7,16 +7,17 @@ namespace GymManagementSystem.Application.Services
 {
     public class MembershipPlanService : IMembershipPlanService
     {
-        private readonly IMembershipPlanRepository _repository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public MembershipPlanService(IMembershipPlanRepository repository)
+        public MembershipPlanService(IUnitOfWork unitOfWork)
         {
-            _repository = repository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<List<MembershipPlanDto>> GetAllPlansAsync()
         {
-            var plans = await _repository.GetAllAsync();
+            var plans = await _unitOfWork.MembershipPlans.GetAllAsync();
+
             return plans.Select(p => new MembershipPlanDto
             {
                 Id = p.Id,
@@ -29,9 +30,9 @@ namespace GymManagementSystem.Application.Services
             }).ToList();
         }
 
-        public async Task<MembershipPlanDto?> GetPlanByIdAsync(int id)
+        public async Task<MembershipPlanDto> GetPlanByIdAsync(int id)
         {
-            var plan = await _repository.GetByIdAsync(id);
+            var plan = await _unitOfWork.MembershipPlans.GetByIdAsync(id);
 
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {id} not found");
@@ -62,7 +63,8 @@ namespace GymManagementSystem.Application.Services
                 GymId = planDto.GymId
             };
 
-            var createdPlan = await _repository.AddAsync(newPlan);
+            var createdPlan = await _unitOfWork.MembershipPlans.AddAsync(newPlan);
+            await _unitOfWork.SaveChangesAsync();
 
             return new MembershipPlanDto
             {
@@ -77,7 +79,7 @@ namespace GymManagementSystem.Application.Services
 
         public async Task UpdatePlanAsync(int id, UpdateMembershipPlanDto dto)
         {
-            var plan = await _repository.GetByIdAsync(id);
+            var plan = await _unitOfWork.MembershipPlans.GetByIdAsync(id);
 
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {id} not found");
@@ -86,23 +88,46 @@ namespace GymManagementSystem.Application.Services
             plan.Price = dto.Price;
             plan.DurationInDays = dto.DurationInDays;
 
-            await _repository.UpdateAsync(plan);
+            await _unitOfWork.MembershipPlans.UpdateAsync(plan);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task DeletePlanAsync(int id)
         {
-            var plan = await _repository.GetByIdAsync(id);
+            var plan = await _unitOfWork.MembershipPlans.GetByIdAsync(id);
 
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {id} not found");
 
-            var hasActiveSubs = await _repository.HasActiveSubscriptionsAsync(id);
+            var hasActiveSubs = await _unitOfWork.MembershipPlans.HasActiveSubscriptionsAsync(id);
 
             if (hasActiveSubs)
                 throw new BusinessRuleException($"Membership plan with id = {id} has active subscriptions and cannot be deleted");
 
             plan.IsDeleted = true;
-            await _repository.UpdateAsync(plan);
+            await _unitOfWork.MembershipPlans.UpdateAsync(plan);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<List<MembershipPlanDto>> GetPlansByGymIdAsync(int gymId)
+        {
+            var gym = await _unitOfWork.Gyms.GetByIdAsync(gymId);
+
+            if (gym == null)
+                throw new NotFoundException($"Gym with id = {gymId} not found");
+
+            var plans = await _unitOfWork.MembershipPlans.GetByGymIdAsync(gymId);
+
+            return plans.Select(p => new MembershipPlanDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Price = p.Price,
+                DurationInDays = p.DurationInDays,
+                Description = p.Description,
+                GymId = p.GymId,
+                GymName = p.Gym != null ? p.Gym.Name : "No Gym Assigned"
+            }).ToList();
         }
     }
 }

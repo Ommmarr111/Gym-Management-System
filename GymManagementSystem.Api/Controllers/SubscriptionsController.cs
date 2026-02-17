@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/subscriptions")]
     [ApiController]
     public class SubscriptionsController : ControllerBase
     {
@@ -15,26 +15,14 @@ namespace GymManagementSystem.Api.Controllers
             _service = service;
         }
 
-        [HttpPost("create")]
+        [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateSubscriptionDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var subscription = await _service.CreateSubscriptionAsync(dto);
-
-                return CreatedAtAction(nameof(GetById), new { id = subscription.Id }, subscription);
-            }
-            catch (Exception ex)
-            {
-
-                return BadRequest(new { Error = ex.Message });
-            }
+            var subscription = await _service.CreateSubscriptionAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = subscription.Id }, subscription);
         }
 
-        [HttpGet("get-all")]
+        [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var subs = await _service.GetAllSubscriptionsAsync();
@@ -45,24 +33,21 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var sub = await _service.GetSubscriptionByIdAsync(id);
-            if (sub == null)
-                return NotFound($"Subscription with ID {id} not found.");
-
             return Ok(sub);
         }
 
-        [HttpPost("cancel/{id}")]
+        [HttpPost("{id}/cancel")]
         public async Task<IActionResult> Cancel(int id)
         {
-            try
-            {
-                await _service.CancelSubscriptionAsync(id);
-                return Ok(new { Message = "Subscription cancelled successfully. 🚫" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Error = ex.Message });
-            }
+            await _service.CancelSubscriptionAsync(id);
+            return Ok(new { Message = "Subscription cancelled successfully." });
+        }
+
+        [HttpGet("member/{memberId}")]
+        public async Task<IActionResult> GetByMemberId(int memberId)
+        {
+            var subs = await _service.GetSubscriptionsByMemberIdAsync(memberId);
+            return Ok(subs);
         }
     }
 }

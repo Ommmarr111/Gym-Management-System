@@ -6,7 +6,9 @@ namespace GymManagementSystem.Application.Interfaces
     {
         Task<List<MembershipPlanDto>> GetAllPlansAsync();
 
-        Task<MembershipPlanDto?> GetPlanByIdAsync(int id);
+        Task<MembershipPlanDto> GetPlanByIdAsync(int id);
+
+        Task<List<MembershipPlanDto>> GetPlansByGymIdAsync(int gymId);
 
         Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto);
         Task UpdatePlanAsync(int id, UpdateMembershipPlanDto planDto);

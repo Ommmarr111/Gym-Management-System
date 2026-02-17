@@ -30,14 +30,13 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<MembershipPlan> AddAsync(MembershipPlan plan)
         {
             await _context.MembershipPlans.AddAsync(plan);
-            await _context.SaveChangesAsync();
             return plan;
         }
 
-        public async Task UpdateAsync(MembershipPlan plan)
+        public Task UpdateAsync(MembershipPlan plan)
         {
             _context.MembershipPlans.Update(plan);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
 
         public async Task DeleteAsync(int id)
@@ -46,7 +45,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
             if (plan != null)
             {
                 plan.IsDeleted = true;
-                await _context.SaveChangesAsync();
             }
         }
 
@@ -54,6 +52,14 @@ namespace GymManagementSystem.Infrastructure.Repositories
         {
             return await _context.Subscriptions
                 .AnyAsync(s => s.MembershipPlanId == planId && s.EndDate >= DateTime.Now && !s.IsDeleted);
+        }
+
+        public async Task<List<MembershipPlan>> GetByGymIdAsync(int gymId)
+        {
+            return await _context.MembershipPlans
+                .Include(p => p.Gym)
+                .Where(p => p.GymId == gymId && !p.IsDeleted)
+                .ToListAsync();
         }
     }
 }

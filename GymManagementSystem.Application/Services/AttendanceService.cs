@@ -7,28 +7,21 @@ namespace GymManagementSystem.Application.Services
 {
     public class AttendanceService : IAttendanceService
     {
-        private readonly IAttendanceRepository _attendanceRepo;
-        private readonly ISubscriptionRepository _subscriptionRepo;
-        private readonly IGymRepository _gymRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public AttendanceService(
-            IAttendanceRepository attendanceRepo,
-            ISubscriptionRepository subscriptionRepo,
-            IGymRepository gymRepo)
+        public AttendanceService(IUnitOfWork unitOfWork)
         {
-            _attendanceRepo = attendanceRepo;
-            _subscriptionRepo = subscriptionRepo;
-            _gymRepo = gymRepo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<AttendanceDto> CheckInAsync(CheckInDto dto)
         {
-            var currentGym = await _gymRepo.GetByIdAsync(dto.GymId);
+            var currentGym = await _unitOfWork.Gyms.GetByIdAsync(dto.GymId);
 
             if (currentGym == null || currentGym.IsDeleted)
                 throw new NotFoundException($"Gym with id = {dto.GymId} does not exist or is closed");
 
-            var memberSubs = await _subscriptionRepo.GetByMemberIdAsync(dto.MemberId);
+            var memberSubs = await _unitOfWork.Subscriptions.GetByMemberIdAsync(dto.MemberId);
 
             var validSubscription = memberSubs.FirstOrDefault(s =>
                 s.Status == "Active" &&
@@ -46,7 +39,8 @@ namespace GymManagementSystem.Application.Services
                 CheckInTime = DateTime.UtcNow
             };
 
-            await _attendanceRepo.AddAsync(attendance);
+            await _unitOfWork.Attendances.AddAsync(attendance);
+            await _unitOfWork.SaveChangesAsync();
 
             return new AttendanceDto
             {
@@ -59,9 +53,29 @@ namespace GymManagementSystem.Application.Services
             };
         }
 
+        public async Task<List<AttendanceDto>> GetGymAttendanceAsync(int gymId)
+        {
+            var gym = await _unitOfWork.Gyms.GetByIdAsync(gymId);
+
+            if (gym == null)
+                throw new NotFoundException($"Gym with id = {gymId} not found");
+
+            var history = await _unitOfWork.Attendances.GetByGymIdAsync(gymId);
+
+            return history.Select(a => new AttendanceDto
+            {
+                Id = a.Id,
+                MemberName = a.Member != null
+                    ? $"{a.Member.FirstName} {a.Member.LastName}"
+                    : "Unknown",
+                GymName = gym.Name,
+                CheckInTime = a.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
+            }).ToList();
+        }
+
         public async Task<List<AttendanceDto>> GetMemberAttendanceHistoryAsync(int memberId)
         {
-            var history = await _attendanceRepo.GetByMemberIdAsync(memberId);
+            var history = await _unitOfWork.Attendances.GetByMemberIdAsync(memberId);
 
             return history.Select(a => new AttendanceDto
             {

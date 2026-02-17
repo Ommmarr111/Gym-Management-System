@@ -17,7 +17,7 @@ namespace GymManagementSystem.Api.Controllers
             _gymService = gymService;
         }
 
-        [HttpPost("add")]
+        [HttpPost]
         public async Task<IActionResult> CreateGym(CreateGymDto request)
         {
             var gym = new Gym
@@ -32,7 +32,14 @@ namespace GymManagementSystem.Api.Controllers
             return Ok(new { Message = "Gym created successfully!", GymId = gymId });
         }
 
-        [HttpGet("get-all")]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var gym = await _gymService.GetGymByIdAsync(id);
+            return Ok(gym);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetAllGyms()
         {
             var gyms = await _gymService.GetAllGymsAsync();

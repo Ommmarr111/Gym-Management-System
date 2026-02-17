@@ -66,24 +66,15 @@ namespace GymManagementSystem.Api
                 });
             });
 
-            // Add services to the container.
 
-            // MEMBERSHIP PLAN SERVICES
-            builder.Services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Add services to the container.
             builder.Services.AddScoped<IMembershipPlanService, MembershipPlanService>();
-            // GYM SERVICES
-            builder.Services.AddScoped<IGymRepository, GymRepository>();
             builder.Services.AddScoped<IGymService, GymService>();
-            // MEMBER SERVICES
-            builder.Services.AddScoped<IMemberRepository, MemberRepository>();
             builder.Services.AddScoped<IMemberService, MemberService>();
-            // SUBSCRIPTION SERVICES
-            builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
-            // ATTENDANCE SERVICES
             builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-            builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
-            // AUTH SERVICES
             builder.Services.AddScoped<IAuthService, AuthService>();
 
             // EXCEPTION HANDLERS

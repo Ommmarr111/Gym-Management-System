@@ -7,33 +7,26 @@ namespace GymManagementSystem.Application.Services
 {
     public class SubscriptionService : ISubscriptionService
     {
-        private readonly ISubscriptionRepository _subscriptionRepo;
-        private readonly IMembershipPlanRepository _planRepo;
-        private readonly IMemberRepository _memberRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public SubscriptionService(
-            ISubscriptionRepository subscriptionRepo,
-            IMembershipPlanRepository planRepo,
-            IMemberRepository memberRepo)
+        public SubscriptionService(IUnitOfWork unitOfWork)
         {
-            _subscriptionRepo = subscriptionRepo;
-            _planRepo = planRepo;
-            _memberRepo = memberRepo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<SubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto dto)
         {
-            var member = await _memberRepo.GetByIdAsync(dto.MemberId);
+            var member = await _unitOfWork.Members.GetByIdAsync(dto.MemberId);
 
             if (member == null)
                 throw new NotFoundException($"Member with id = {dto.MemberId} not found");
 
-            var plan = await _planRepo.GetByIdAsync(dto.MembershipPlanId);
+            var plan = await _unitOfWork.MembershipPlans.GetByIdAsync(dto.MembershipPlanId);
 
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {dto.MembershipPlanId} not found");
 
-            var activeSubscription = await _subscriptionRepo.GetActiveSubscriptionAsync(dto.MemberId, dto.MembershipPlanId);
+            var activeSubscription = await _unitOfWork.Subscriptions.GetActiveSubscriptionAsync(dto.MemberId, dto.MembershipPlanId);
 
             if (activeSubscription != null)
                 throw new BusinessRuleException($"Member with id = {dto.MemberId} already has an active subscription for this plan");
@@ -51,7 +44,8 @@ namespace GymManagementSystem.Application.Services
                 Status = "Active"
             };
 
-            await _subscriptionRepo.AddAsync(subscription);
+            await _unitOfWork.Subscriptions.AddAsync(subscription);
+            await _unitOfWork.SaveChangesAsync();
 
             return new SubscriptionDto
             {
@@ -67,7 +61,7 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<List<SubscriptionDto>> GetAllSubscriptionsAsync()
         {
-            var subs = await _subscriptionRepo.GetAllAsync();
+            var subs = await _unitOfWork.Subscriptions.GetAllAsync();
 
             return subs.Select(s => new SubscriptionDto
             {
@@ -83,7 +77,7 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<SubscriptionDto> GetSubscriptionByIdAsync(int id)
         {
-            var s = await _subscriptionRepo.GetByIdAsync(id);
+            var s = await _unitOfWork.Subscriptions.GetByIdAsync(id);
 
             if (s == null)
                 throw new NotFoundException($"Subscription with id = {id} not found");
@@ -102,7 +96,7 @@ namespace GymManagementSystem.Application.Services
 
         public async Task CancelSubscriptionAsync(int subscriptionId)
         {
-            var sub = await _subscriptionRepo.GetByIdAsync(subscriptionId);
+            var sub = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionId);
 
             if (sub == null)
                 throw new NotFoundException($"Subscription with id = {subscriptionId} not found");
@@ -110,7 +104,29 @@ namespace GymManagementSystem.Application.Services
             if (sub.Status == "Cancelled")
                 throw new BusinessRuleException($"Subscription with id = {subscriptionId} is already cancelled");
 
-            await _subscriptionRepo.UpdateStatusAsync(subscriptionId, "Cancelled");
+            await _unitOfWork.Subscriptions.UpdateStatusAsync(subscriptionId, "Cancelled");
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<List<SubscriptionDto>> GetSubscriptionsByMemberIdAsync(int memberId)
+        {
+            var member = await _unitOfWork.Members.GetByIdAsync(memberId);
+
+            if (member == null)
+                throw new NotFoundException($"Member with id = {memberId} not found");
+
+            var subs = await _unitOfWork.Subscriptions.GetByMemberIdAsync(memberId);
+
+            return subs.Select(s => new SubscriptionDto
+            {
+                Id = s.Id,
+                MemberId = s.MemberId,
+                MemberName = $"{member.FirstName} {member.LastName}",
+                PlanName = s.MembershipPlan != null ? s.MembershipPlan.Name : "Unknown",
+                Price = s.AmountPaid,
+                Status = s.Status,
+                EndDate = s.EndDate.ToString("yyyy-MM-dd")
+            }).ToList();
         }
     }
 }

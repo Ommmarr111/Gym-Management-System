@@ -34,7 +34,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<Subscription> AddAsync(Subscription subscription)
         {
             await _context.Subscriptions.AddAsync(subscription);
-            await _context.SaveChangesAsync();
             return subscription;
         }
 
@@ -53,7 +52,6 @@ namespace GymManagementSystem.Infrastructure.Repositories
             if (sub != null)
             {
                 sub.Status = newStatus;
-                await _context.SaveChangesAsync();
             }
         }
         public async Task<Subscription?> GetActiveSubscriptionAsync(int memberId, int membershipPlanId)

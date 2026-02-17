@@ -15,14 +15,14 @@ namespace GymManagementSystem.Api.Controllers
             _service = service;
         }
 
-        [HttpPost("create")]
+        [HttpPost]
         public async Task<IActionResult> CreatePlan([FromBody] CreateMembershipPlanDto request)
         {
             var createdPlanDto = await _service.CreatePlanAsync(request);
             return Ok(new { Message = "Plan created!", Plan = createdPlanDto });
         }
 
-        [HttpGet("get-all")]
+        [HttpGet]
         public async Task<IActionResult> GetAllPlans()
         {
             var plans = await _service.GetAllPlansAsync();
@@ -48,6 +48,13 @@ namespace GymManagementSystem.Api.Controllers
         {
             await _service.DeletePlanAsync(id);
             return Ok(new { Message = "Plan deleted successfully! 🗑️" });
+        }
+
+        [HttpGet("gym/{gymId}")]
+        public async Task<IActionResult> GetByGymId(int gymId)
+        {
+            var plans = await _service.GetPlansByGymIdAsync(gymId);
+            return Ok(plans);
         }
     }
 }
