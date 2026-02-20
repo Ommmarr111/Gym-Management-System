@@ -1,5 +1,8 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Services;
+using GymManagementSystem.Application.Validators;
 using GymManagementSystem.Domain.Entities;
 using GymManagementSystem.Infrastructure.Persistence;
 using GymManagementSystem.Infrastructure.Repositories;
@@ -86,6 +89,10 @@ namespace GymManagementSystem.Api
 
             // Global ALWAYS last
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+            // VALIDATION
+            builder.Services.AddFluentValidationAutoValidation();
+            builder.Services.AddValidatorsFromAssemblyContaining<CreateMemberDtoValidator>();
 
             builder.Services.AddProblemDetails();
 

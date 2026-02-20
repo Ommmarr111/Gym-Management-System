@@ -31,8 +31,6 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<int> CreateGymAsync(Gym gym)
         {
-            if (string.IsNullOrWhiteSpace(gym.Name))
-                throw new ValidationException("Gym name cannot be empty");
 
             var result = await _unitOfWork.Gyms.AddAsync(gym);
             await _unitOfWork.SaveChangesAsync();

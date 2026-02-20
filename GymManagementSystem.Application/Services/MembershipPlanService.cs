@@ -51,9 +51,6 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto)
         {
-            if (planDto.Price <= 0)
-                throw new ValidationException("Price must be greater than zero!");
-
             var newPlan = new MembershipPlan
             {
                 Name = planDto.Name,
