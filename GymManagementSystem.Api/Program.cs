@@ -1,6 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using GymManagementSystem.Application.Interfaces;
+using GymManagementSystem.Application.Mappings;
 using GymManagementSystem.Application.Services;
 using GymManagementSystem.Application.Validators;
 using GymManagementSystem.Domain.Entities;
@@ -94,10 +95,13 @@ namespace GymManagementSystem.Api
             builder.Services.AddFluentValidationAutoValidation();
             builder.Services.AddValidatorsFromAssemblyContaining<CreateMemberDtoValidator>();
 
-            builder.Services.AddProblemDetails();
-
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+
+            builder.Services.AddAutoMapper(config =>
+            {
+                config.AddMaps(typeof(MappingProfile).Assembly);
+            });
             builder.Services.AddSwaggerGen();
             var app = builder.Build();
 

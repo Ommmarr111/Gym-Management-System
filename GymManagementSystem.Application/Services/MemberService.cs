@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.DTOs;
+﻿using AutoMapper;
+using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
@@ -8,45 +9,31 @@ namespace GymManagementSystem.Application.Services
     public class MemberService : IMemberService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public MemberService(IUnitOfWork unitOfWork)
+        public MemberService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         public async Task<List<MemberDto>> GetAllMembersAsync()
         {
             var members = await _unitOfWork.Members.GetAllAsync();
 
-            return members.Select(m => new MemberDto
-            {
-                Id = m.Id,
-                FullName = $"{m.FirstName} {m.LastName}",
-                Email = m.Email,
-                GymName = m.Gym != null ? m.Gym.Name : "No Gym Assigned"
-            }).ToList();
+            return _mapper.Map<List<MemberDto>>(members);
         }
 
         public async Task<MemberDetailsDto> GetMemberByIdAsync(int id)
         {
-            var m = await _unitOfWork.Members.GetByIdAsync(id);
+            var member = await _unitOfWork.Members.GetByIdAsync(id);
 
-            if (m == null)
+            if (member == null)
                 throw new NotFoundException($"Member with id = {id} not found");
 
-            return new MemberDetailsDto
-            {
-                Id = m.Id,
-                FirstName = m.FirstName,
-                LastName = m.LastName,
-                Email = m.Email,
-                PhoneNumber = m.PhoneNumber,
-                DateOfBirth = m.DateOfBirth,
-                JoinDate = m.JoinDate,
-                GymId = m.GymId,
-                GymName = m.Gym != null ? m.Gym.Name : "No Gym Assigned"
-            };
+            return _mapper.Map<MemberDetailsDto>(member);
         }
+
 
         public async Task<MemberDetailsDto> CreateMemberAsync(CreateMemberDto dto)
         {
@@ -54,33 +41,13 @@ namespace GymManagementSystem.Application.Services
 
             if (emailExists)
                 throw new BusinessRuleException($"A member with email {dto.Email} already exists");
-
-            var newMember = new Member
-            {
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                Email = dto.Email,
-                PhoneNumber = dto.PhoneNumber,
-                DateOfBirth = dto.DateOfBirth,
-                GymId = dto.GymId,
-                JoinDate = DateTime.UtcNow
-            };
+            var newMember = _mapper.Map<Member>(dto);
+            newMember.JoinDate = DateTime.UtcNow;
 
             var createdMember = await _unitOfWork.Members.AddAsync(newMember);
             await _unitOfWork.SaveChangesAsync();
 
-            return new MemberDetailsDto
-            {
-                Id = createdMember.Id,
-                FirstName = createdMember.FirstName,
-                LastName = createdMember.LastName,
-                Email = createdMember.Email,
-                PhoneNumber = createdMember.PhoneNumber,
-                DateOfBirth = createdMember.DateOfBirth,
-                JoinDate = createdMember.JoinDate,
-                GymId = createdMember.GymId,
-                GymName = "Newly Added"
-            };
+            return _mapper.Map<MemberDetailsDto>(createdMember);
         }
 
         public async Task UpdateMemberAsync(int id, CreateMemberDto dto)
@@ -95,12 +62,7 @@ namespace GymManagementSystem.Application.Services
             if (emailExists && existingMember.Email != dto.Email)
                 throw new BusinessRuleException($"Email {dto.Email} is already taken by another member");
 
-            existingMember.FirstName = dto.FirstName;
-            existingMember.LastName = dto.LastName;
-            existingMember.Email = dto.Email;
-            existingMember.PhoneNumber = dto.PhoneNumber;
-            existingMember.DateOfBirth = dto.DateOfBirth;
-            existingMember.GymId = dto.GymId;
+            _mapper.Map(dto, existingMember); // Update existing member with new values from DTO
 
             await _unitOfWork.Members.UpdateAsync(existingMember);
             await _unitOfWork.SaveChangesAsync();
