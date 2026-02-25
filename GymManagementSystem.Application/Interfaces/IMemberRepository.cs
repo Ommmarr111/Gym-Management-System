@@ -10,6 +10,8 @@ namespace GymManagementSystem.Application.Interfaces
         Task UpdateAsync(Member member);
         Task DeleteAsync(int id);
         Task<bool> EmailExistsAsync(string email);
+        Task<int> CountByGymIdAsync(int gymId);
+
 
     }
 }

@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.DTOs;
+﻿using AutoMapper;
+using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
@@ -8,12 +9,13 @@ namespace GymManagementSystem.Application.Services
     public class AttendanceService : IAttendanceService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public AttendanceService(IUnitOfWork unitOfWork)
+        public AttendanceService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
-
         public async Task<AttendanceDto> CheckInAsync(CheckInDto dto)
         {
             var currentGym = await _unitOfWork.Gyms.GetByIdAsync(dto.GymId);
@@ -52,7 +54,6 @@ namespace GymManagementSystem.Application.Services
                 CheckInTime = attendance.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
             };
         }
-
         public async Task<List<AttendanceDto>> GetGymAttendanceAsync(int gymId)
         {
             var gym = await _unitOfWork.Gyms.GetByIdAsync(gymId);

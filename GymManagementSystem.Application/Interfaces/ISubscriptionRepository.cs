@@ -9,6 +9,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task<Subscription> AddAsync(Subscription subscription);
         Task UpdateStatusAsync(int subscriptionId, string newStatus);
         Task<List<Subscription>> GetByMemberIdAsync(int memberId);
+        Task UpdateAsync(Subscription subscription);
 
         Task<Subscription?> GetActiveSubscriptionAsync(int memberId, int membershipPlanId);
     }

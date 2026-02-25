@@ -7,6 +7,7 @@
         IMembershipPlanRepository MembershipPlans { get; }
         ISubscriptionRepository Subscriptions { get; }
         IAttendanceRepository Attendances { get; }
+        IPaymentRepository Payments { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

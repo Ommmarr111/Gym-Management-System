@@ -55,5 +55,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
             return await _context.Members
                 .AnyAsync(m => m.Email == email && !m.IsDeleted);
         }
+
+        public async Task<int> CountByGymIdAsync(int gymId)
+        {
+            return await _context.Members.CountAsync(m => m.GymId == gymId);
+        }
     }
 }

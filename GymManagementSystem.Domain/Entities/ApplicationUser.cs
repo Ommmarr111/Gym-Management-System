@@ -9,6 +9,5 @@ namespace GymManagementSystem.Domain.Entities
         public bool IsDeleted { get; set; } = false;
 
         public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
-        public ICollection<WorkoutPlan> WorkoutPlans { get; set; } = new List<WorkoutPlan>();
     }
 }

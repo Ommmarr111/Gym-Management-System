@@ -99,6 +99,12 @@ namespace GymManagementSystem.Application.Mappings
                 .ForMember(dest => dest.CheckInTime, opt => opt.Ignore())  // Set in service
                 .ForMember(dest => dest.Member, opt => opt.Ignore())
                 .ForMember(dest => dest.Gym, opt => opt.Ignore());
+
+            // ====================== Payment Mappings ======================
+            CreateMap<Payment, PaymentDto>()
+                .ForMember(dest => dest.PaymentDate,
+                    opt => opt.MapFrom(src => src.PaymentDate.ToString("yyyy-MM-dd")));
         }
+
     }
 }

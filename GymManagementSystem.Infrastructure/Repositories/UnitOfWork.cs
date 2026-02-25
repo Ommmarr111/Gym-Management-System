@@ -12,6 +12,7 @@ namespace GymManagementSystem.Infrastructure.Repositories
         private IMembershipPlanRepository? _membershipPlans;
         private ISubscriptionRepository? _subscriptions;
         private IAttendanceRepository? _attendances;
+        private IPaymentRepository? _payments;
 
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -33,6 +34,8 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public IAttendanceRepository Attendances =>
             _attendances ??= new AttendanceRepository(_context);
 
+        public IPaymentRepository Payments =>
+            _payments ??= new PaymentRepository(_context);
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             return await _context.SaveChangesAsync(cancellationToken);

@@ -20,6 +20,11 @@ namespace GymManagementSystem.Application.Validators
                 .MinimumLength(10).WithMessage("Phone number must be at least 10 digits")
                 .MaximumLength(15).WithMessage("Phone number cannot exceed 15 digits")
                 .Matches(@"^\+?[0-9]+$").WithMessage("Phone number can only contain digits and optional + prefix");
+
+
+            RuleFor(x => x.Capacity)
+                .GreaterThan(0).WithMessage("Capacity must be greater than 0")
+                .LessThanOrEqualTo(10000).WithMessage("Capacity cannot exceed 10,000");
         }
     }
 }

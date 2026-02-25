@@ -10,11 +10,12 @@ namespace GymManagementSystem.Infrastructure.Persistence
             : base(options)
         {
         }
+
+        public DbSet<Payment> Payments { get; set; }
+
         public DbSet<Gym> Gyms { get; set; }
         public DbSet<MembershipPlan> MembershipPlans { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
-        public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
-        public DbSet<Exercise> Exercises { get; set; }
         public DbSet<Attendance> Attendances { get; set; }
         public DbSet<Member> Members { get; set; }
 
@@ -44,11 +45,22 @@ namespace GymManagementSystem.Infrastructure.Persistence
                       .HasForeignKey(a => a.GymId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
+            builder.Entity<Payment>(entity =>
+            {
+                entity.Property(p => p.Amount).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(p => p.Subscription)
+                      .WithMany()
+                      .HasForeignKey(p => p.SubscriptionId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
             builder.Entity<Gym>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<MembershipPlan>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<Subscription>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<WorkoutPlan>().HasQueryFilter(x => !x.IsDeleted);
-            builder.Entity<Exercise>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<Member>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<Attendance>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<Payment>().HasQueryFilter(x => !x.IsDeleted);  // ← Add query filter
+
         }
     }
 }

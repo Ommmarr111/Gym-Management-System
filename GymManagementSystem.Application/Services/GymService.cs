@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.DTOs;
+﻿using AutoMapper;
+using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
@@ -8,33 +9,38 @@ namespace GymManagementSystem.Application.Services
     public class GymService : IGymService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public GymService(IUnitOfWork unitOfWork)
+        public GymService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
-        public async Task<List<Gym>> GetAllGymsAsync()
+        public async Task<List<GymDto>> GetAllGymsAsync()
         {
-            return await _unitOfWork.Gyms.GetAllAsync();
+            var gyms = await _unitOfWork.Gyms.GetAllAsync();
+            return _mapper.Map<List<GymDto>>(gyms);
         }
 
-        public async Task<Gym> GetGymByIdAsync(int id)
+        public async Task<GymDto> GetGymByIdAsync(int id)
         {
             var gym = await _unitOfWork.Gyms.GetByIdAsync(id);
 
             if (gym == null)
                 throw new NotFoundException($"Gym with id = {id} not found");
 
-            return gym;
+            return _mapper.Map<GymDto>(gym);
         }
 
-        public async Task<int> CreateGymAsync(Gym gym)
+        public async Task<GymDto> CreateGymAsync(CreateGymDto dto)
         {
+            var gym = _mapper.Map<Gym>(dto);
 
-            var result = await _unitOfWork.Gyms.AddAsync(gym);
+            await _unitOfWork.Gyms.AddAsync(gym);
             await _unitOfWork.SaveChangesAsync();
-            return result;
+
+            return _mapper.Map<GymDto>(gym);
         }
 
         public async Task UpdateGymAsync(int id, UpdateGymDto dto)
@@ -44,14 +50,19 @@ namespace GymManagementSystem.Application.Services
             if (gym == null)
                 throw new NotFoundException($"Gym with id = {id} not found");
 
-            gym.Name = dto.Name;
-            gym.Address = dto.Address;
-            gym.PhoneNumber = dto.PhoneNumber;
+            // ✅ ADD THIS BLOCK
+            if (dto.Capacity < gym.Capacity)
+            {
+                var memberCount = await _unitOfWork.Members.CountByGymIdAsync(id);
+                if (dto.Capacity < memberCount)
+                    throw new BusinessRuleException(
+                        $"Cannot reduce capacity to {dto.Capacity}. Gym currently has {memberCount} members.");
+            }
 
+            _mapper.Map(dto, gym);
             await _unitOfWork.Gyms.UpdateAsync(gym);
             await _unitOfWork.SaveChangesAsync();
         }
-
         public async Task DeleteGymAsync(int id)
         {
             var gym = await _unitOfWork.Gyms.GetByIdAsync(id);

@@ -63,5 +63,11 @@ namespace GymManagementSystem.Infrastructure.Repositories
                     s.Status == "Active" &&
                     s.EndDate.Date >= DateTime.UtcNow.Date);
         }
+
+        public Task UpdateAsync(Subscription subscription)
+        {
+            _context.Subscriptions.Update(subscription);
+            return Task.CompletedTask;
+        }
     }
 }

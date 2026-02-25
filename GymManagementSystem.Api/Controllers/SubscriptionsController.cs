@@ -49,5 +49,18 @@ namespace GymManagementSystem.Api.Controllers
             var subs = await _service.GetSubscriptionsByMemberIdAsync(memberId);
             return Ok(subs);
         }
+        [HttpPost("{id}/freeze")]
+        public async Task<IActionResult> Freeze(int id, [FromBody] FreezeSubscriptionDto dto)
+        {
+            await _service.FreezeSubscriptionAsync(id, dto);
+            return Ok(new { Message = "Subscription frozen successfully" });
+        }
+
+        [HttpPost("{id}/unfreeze")]
+        public async Task<IActionResult> Unfreeze(int id)
+        {
+            await _service.UnfreezeSubscriptionAsync(id);
+            return Ok(new { Message = "Subscription unfrozen successfully" });
+        }
     }
 }

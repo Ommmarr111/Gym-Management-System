@@ -9,5 +9,8 @@
 
         public string PhoneNumber { get; set; } = string.Empty;
 
+        public int Capacity { get; set; }
+
+
     }
 }

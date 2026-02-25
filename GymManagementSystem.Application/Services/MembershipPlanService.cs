@@ -21,7 +21,6 @@ namespace GymManagementSystem.Application.Services
         {
             var plans = await _unitOfWork.MembershipPlans.GetAllAsync();
             return _mapper.Map<List<MembershipPlanDto>>(plans);
-
         }
 
         public async Task<MembershipPlanDto> GetPlanByIdAsync(int id)
@@ -36,20 +35,12 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<MembershipPlanDto> CreatePlanAsync(CreateMembershipPlanDto planDto)
         {
-            var newPlan = new MembershipPlan
-            {
-                Name = planDto.Name,
-                Price = planDto.Price,
-                DurationInDays = planDto.DurationInDays,
-                Description = planDto.Description,
-                GymId = planDto.GymId
-            };
+            var newPlan = _mapper.Map<MembershipPlan>(planDto);  // ✅ Use mapper
 
             var createdPlan = await _unitOfWork.MembershipPlans.AddAsync(newPlan);
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<MembershipPlanDto>(createdPlan);
-
         }
 
         public async Task UpdatePlanAsync(int id, UpdateMembershipPlanDto dto)
@@ -59,9 +50,7 @@ namespace GymManagementSystem.Application.Services
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {id} not found");
 
-            plan.Name = dto.Name;
-            plan.Price = dto.Price;
-            plan.DurationInDays = dto.DurationInDays;
+            _mapper.Map(dto, plan);  // ✅ Use mapper to update existing entity
 
             await _unitOfWork.MembershipPlans.UpdateAsync(plan);
             await _unitOfWork.SaveChangesAsync();
@@ -93,16 +82,7 @@ namespace GymManagementSystem.Application.Services
 
             var plans = await _unitOfWork.MembershipPlans.GetByGymIdAsync(gymId);
 
-            return plans.Select(p => new MembershipPlanDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Price = p.Price,
-                DurationInDays = p.DurationInDays,
-                Description = p.Description,
-                GymId = p.GymId,
-                GymName = p.Gym != null ? p.Gym.Name : "No Gym Assigned"
-            }).ToList();
+            return _mapper.Map<List<MembershipPlanDto>>(plans);  // ✅ Use mapper
         }
     }
 }
