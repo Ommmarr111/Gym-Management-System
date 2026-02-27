@@ -48,5 +48,13 @@ namespace GymManagementSystem.Infrastructure.Repositories
                 .OrderByDescending(a => a.CheckInTime)
                 .ToListAsync();
         }
+
+        public async Task<Attendance?> GetByIdAsync(int id)
+        {
+            return await _context.Attendances
+                .Include(a => a.Member)
+                .Include(a => a.Gym)
+                .FirstOrDefaultAsync(a => a.Id == id);
+        }
     }
 }

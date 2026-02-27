@@ -16,6 +16,7 @@ namespace GymManagementSystem.Application.Services
             _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
+
         public async Task<AttendanceDto> CheckInAsync(CheckInDto dto)
         {
             var currentGym = await _unitOfWork.Gyms.GetByIdAsync(dto.GymId);
@@ -34,26 +35,17 @@ namespace GymManagementSystem.Application.Services
             if (validSubscription == null)
                 throw new ForbiddenException("Access denied: no active subscription found for this gym");
 
-            var attendance = new Attendance
-            {
-                MemberId = dto.MemberId,
-                GymId = dto.GymId,
-                CheckInTime = DateTime.UtcNow
-            };
+            var attendance = _mapper.Map<Attendance>(dto);
+            attendance.CheckInTime = DateTime.UtcNow;
 
             await _unitOfWork.Attendances.AddAsync(attendance);
             await _unitOfWork.SaveChangesAsync();
 
-            return new AttendanceDto
-            {
-                Id = attendance.Id,
-                MemberName = validSubscription.Member != null
-                    ? $"{validSubscription.Member.FirstName} {validSubscription.Member.LastName}"
-                    : "Valued Member",
-                GymName = currentGym.Name,
-                CheckInTime = attendance.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
-            };
+            var savedAttendance = await _unitOfWork.Attendances.GetByIdAsync(attendance.Id);
+
+            return _mapper.Map<AttendanceDto>(savedAttendance);
         }
+
         public async Task<List<AttendanceDto>> GetGymAttendanceAsync(int gymId)
         {
             var gym = await _unitOfWork.Gyms.GetByIdAsync(gymId);
@@ -63,28 +55,14 @@ namespace GymManagementSystem.Application.Services
 
             var history = await _unitOfWork.Attendances.GetByGymIdAsync(gymId);
 
-            return history.Select(a => new AttendanceDto
-            {
-                Id = a.Id,
-                MemberName = a.Member != null
-                    ? $"{a.Member.FirstName} {a.Member.LastName}"
-                    : "Unknown",
-                GymName = gym.Name,
-                CheckInTime = a.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
-            }).ToList();
+            return _mapper.Map<List<AttendanceDto>>(history);
         }
 
         public async Task<List<AttendanceDto>> GetMemberAttendanceHistoryAsync(int memberId)
         {
             var history = await _unitOfWork.Attendances.GetByMemberIdAsync(memberId);
 
-            return history.Select(a => new AttendanceDto
-            {
-                Id = a.Id,
-                MemberName = a.Member != null ? $"{a.Member.FirstName} {a.Member.LastName}" : "Unknown",
-                GymName = a.Gym != null ? a.Gym.Name : "Unknown",
-                CheckInTime = a.CheckInTime.ToString("yyyy-MM-dd hh:mm tt")
-            }).ToList();
+            return _mapper.Map<List<AttendanceDto>>(history);
         }
     }
 }

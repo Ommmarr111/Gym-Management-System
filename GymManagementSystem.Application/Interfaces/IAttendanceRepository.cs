@@ -10,5 +10,7 @@ namespace GymManagementSystem.Application.Interfaces
 
         Task<List<Attendance>> GetByGymIdAsync(int gymId);
 
+        Task<Attendance?> GetByIdAsync(int id);
+
     }
 }
