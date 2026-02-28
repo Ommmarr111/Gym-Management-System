@@ -115,39 +115,35 @@ Pending → Active → Frozen → Active → Expired
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│                 API Layer                       │
-│  - Controllers                                  │
-│  - Exception Handlers                           │
-│  - DTOs Validation (FluentValidation)          │
-└────────────────┬────────────────────────────────┘
-                 │
-┌────────────────▼────────────────────────────────┐
-│            Application Layer                    │
-│  - Services (Business Logic)                    │
-│  - Interfaces                                   │
-│  - DTOs                                         │
-│  - Custom Exceptions                            │
-│  - Validators                                   │
-│  - AutoMapper Profiles                          │
-└────────────────┬────────────────────────────────┘
-                 │
-┌────────────────▼────────────────────────────────┐
-│           Infrastructure Layer                  │
-│  - Repositories                                 │
-│  - Unit of Work                                 │
-│  - DbContext                                    │
-│  - Migrations                                   │
-└────────────────┬────────────────────────────────┘
-                 │
-┌────────────────▼────────────────────────────────┐
-│              Domain Layer                       │
-│  - Entities                                     │
-│  - Business Rules                               │
-└─────────────────────────────────────────────────┘
-```
+The project follows **Clean Architecture** principles with clear separation of concerns across four layers:
 
+```
+GymManagementSystem/
+│
+├── 📁 GymManagementSystem.Api/              (Presentation Layer)
+│   ├── Controllers/                         → API endpoints
+│   ├── Middleware/                          → Exception handlers
+│   ├── Models/                              → View models (if any)
+│   ├── Program.cs                           → Application entry point
+│   └── appsettings.json                     → Configuration
+│
+├── 📁 GymManagementSystem.Application/      (Application Layer)
+│   ├── DTOs/                                → Data Transfer Objects
+│   ├── Exceptions/                          → Custom exception types
+│   ├── Interfaces/                          → Service & Repository contracts
+│   ├── Mappings/                            → AutoMapper profiles
+│   ├── Services/                            → Business logic implementation
+│   └── Validators/                          → FluentValidation rules
+│
+├── 📁 GymManagementSystem.Domain/           (Domain Layer)
+│   └── Entities/                            → Domain models (Gym, Member, etc.)
+│
+└── 📁 GymManagementSystem.Infrastructure/   (Infrastructure Layer)
+    ├── Migrations/                          → EF Core migrations
+    ├── Persistence/                         → DbContext
+    ├── Repositories/                        → Data access implementation
+    └── Seeding/                             → Initial data (if any)
+```
 ---
 
 ## 📡 API Endpoints
