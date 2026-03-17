@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs.Auth;
+using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -21,36 +22,44 @@ namespace GymManagementSystem.Application.Services
             _configuration = configuration;
         }
 
-        public async Task<AuthResponseDto> RegisterAsync(RegisterDto request)
+        public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
         {
-            var existingUser = await _userManager.FindByEmailAsync(request.Email);
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+
             if (existingUser != null)
-                throw new Exception("Email is already in use.");
+                throw new BusinessRuleException($"User with email {dto.Email} already exists");
+
             var user = new ApplicationUser
             {
-                Email = request.Email,
-                UserName = request.Email, // Identity requires UserName
-                FullName = request.FullName
+                Email = dto.Email,
+                UserName = dto.Email,
+                FullName = dto.FullName,
+                EmailConfirmed = true
             };
-            var result = await _userManager.CreateAsync(user, request.Password);
+
+            var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                throw new Exception($"Registration failed: {errors}");
+                throw new ValidationException($"User creation failed: {errors}");
             }
-            await _userManager.AddToRoleAsync(user, "Trainee");
+            await _userManager.AddToRoleAsync(user, dto.Role);
             return await GenerateToken(user);
         }
 
-        public async Task<AuthResponseDto> LoginAsync(LoginDto request)
+        public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
         {
-            var user = await _userManager.FindByEmailAsync(request.Email);
+            var user = await _userManager.FindByEmailAsync(dto.Email);
+
             if (user == null)
-                throw new Exception("Invalid email or password.");
-            var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+                throw new UnauthorizedException("Invalid email or password");
+
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+
             if (!isPasswordValid)
-                throw new Exception("Invalid email or password.");
+                throw new UnauthorizedException("Invalid email or password");
+
             return await GenerateToken(user);
         }
 
@@ -59,23 +68,24 @@ namespace GymManagementSystem.Application.Services
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Email, user.Email!),
                 new Claim("FullName", user.FullName)
             };
 
             var roles = await _userManager.GetRolesAsync(user);
+
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(double.Parse(_configuration["Jwt:DurationInMinutes"])),
+                Expires = DateTime.UtcNow.AddMinutes(double.Parse(_configuration["Jwt:DurationInMinutes"]!)),
                 Issuer = _configuration["Jwt:Issuer"],
                 Audience = _configuration["Jwt:Audience"],
                 SigningCredentials = creds
@@ -87,9 +97,12 @@ namespace GymManagementSystem.Application.Services
             return new AuthResponseDto
             {
                 Token = tokenHandler.WriteToken(token),
-                Email = user.Email,
                 UserId = user.Id,
-                Roles = roles.ToList()
+                Email = user.Email!,
+                FullName = user.FullName,
+                Roles = roles.ToList(),
+                Expiration = DateTime.UtcNow.AddMinutes(
+                    double.Parse(_configuration["Jwt:DurationInMinutes"]!))
             };
         }
     }

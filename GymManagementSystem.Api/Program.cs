@@ -44,8 +44,8 @@ namespace GymManagementSystem.Api
             })
             .AddJwtBearer(options =>
             {
-                options.SaveToken = true; // save token in the current request 
-                options.RequireHttpsMetadata = false; // for development only in production should be true
+                options.SaveToken = true;
+                options.RequireHttpsMetadata = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -54,7 +54,7 @@ namespace GymManagementSystem.Api
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
                 };
             });
             builder.Services.AddCors(options =>
