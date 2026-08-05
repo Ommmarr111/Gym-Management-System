@@ -35,7 +35,6 @@ namespace GymManagementSystem.Api
             })
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
-
             // 2. JWT AUTHENTICATION CONFIGURATION
             builder.Services.AddAuthentication(options =>
             {

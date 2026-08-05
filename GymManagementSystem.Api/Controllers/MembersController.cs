@@ -33,6 +33,7 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> Create([FromBody] CreateMemberDto dto)
         {
             var createdMember = await _service.CreateMemberAsync(dto);
+
             return CreatedAtAction(nameof(GetById), new { id = createdMember.Id }, createdMember);
         }
 

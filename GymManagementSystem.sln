@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197 d17.13
+VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GymManagementSystem.Api", "GymManagementSystem.Api\GymManagementSystem.Api.csproj", "{0219B359-F22F-4437-B111-14152FAB1C25}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GymManagementSystem.Application", "GymManagementSystem.Application\GymManagementSystem.Application.csproj", "{54F0ED0C-E810-4829-9FC1-E3FD7EF7A798}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GymManagementSystem.Infrastructure", "GymManagementSystem.Infrastructure\GymManagementSystem.Infrastructure.csproj", "{CCEB688B-286B-48B4-A0EB-8ED2598BB2B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GymManagementSystem.Tests", "Tests\GymManagementSystem.Tests.csproj", "{DF904544-5479-4386-A7F6-8C112E16B60B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{CCEB688B-286B-48B4-A0EB-8ED2598BB2B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CCEB688B-286B-48B4-A0EB-8ED2598BB2B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CCEB688B-286B-48B4-A0EB-8ED2598BB2B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF904544-5479-4386-A7F6-8C112E16B60B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF904544-5479-4386-A7F6-8C112E16B60B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF904544-5479-4386-A7F6-8C112E16B60B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF904544-5479-4386-A7F6-8C112E16B60B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
