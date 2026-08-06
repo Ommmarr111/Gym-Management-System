@@ -1,29 +1,102 @@
-﻿using GymManagementSystem.Api;
-using Microsoft.AspNetCore.Mvc.Testing;
+﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
+using System.Net.Http.Json;
 
-namespace GymManagementSystem.Tests.Integrations
+namespace GymManagementSystem.Tests.Integrations;
+
+public class MemberIntegrationTests : IClassFixture<CustomWebApplicationFactory>
 {
-    public class MemberIntegrationTests
+    private readonly CustomWebApplicationFactory _factory;
+
+    public MemberIntegrationTests(CustomWebApplicationFactory factory)
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        _factory = factory;
+    }
 
-        public MemberIntegrationTests()
+    private HttpClient CreateClient()
+    {
+        return _factory.CreateClient();
+    }
+
+    private async Task ResetDatabaseAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
+
+        await db.Database.EnsureDeletedAsync();
+        await db.Database.EnsureCreatedAsync();
+    }
+
+    private async Task ExecuteWithDbContextAsync(Func<ApplicationDbContext, Task> action)
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var db = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
+
+        await action(db);
+    }
+
+    [Fact]
+    public async Task GetAll_Should_Return_Empty_List_When_NoMembersExist()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+
+        var client = CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/api/members");
+
+        response.EnsureSuccessStatusCode();
+
+        var members = await response.Content
+            .ReadFromJsonAsync<List<MemberDto>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        Assert.NotNull(members);
+
+        Assert.Empty(members);
+    }
+
+    [Fact]
+    public async Task GetAll_Should_Return_All_Members()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+
+        var client = CreateClient();
+
+        await ExecuteWithDbContextAsync(async db =>
         {
-            _factory = new WebApplicationFactory<Program>();
-        }
+            var gym = await TestDataSeeder.SeedGymAsync(db);
 
-        [Fact]
-        public async Task GetAll_Should_Return_Ok()
-        {
-            // Arrange
-            var client = _factory.CreateClient();
+            await TestDataSeeder.SeedMemberAsync(db, gym);
+        });
 
-            // Act
-            var response = await client.GetAsync("/api/members");
+        // Act
+        var response = await client.GetAsync("/api/members");
 
-            // Assert
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        }
+        response.EnsureSuccessStatusCode();
+
+        var members = await response.Content
+            .ReadFromJsonAsync<List<MemberDto>>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        Assert.NotNull(members);
+
+        Assert.Single(members);
+
+        Assert.Equal("John Doe", members[0].FullName);
+
+        Assert.Equal("Fitness Center", members[0].GymName);
     }
 }
