@@ -11,6 +11,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task DeleteAsync(int id);
         Task<bool> EmailExistsAsync(string email);
         Task<int> CountByGymIdAsync(int gymId);
+        IQueryable<Member> GetAllAsQueryable();
 
 
     }

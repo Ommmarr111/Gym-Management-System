@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,10 +17,10 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] MemberRequestParams parameters)
         {
-            var members = await _service.GetAllMembersAsync();
-            return Ok(members);
+            var pagedMembers = await _service.GetAllMembersAsync(parameters);
+            return Ok(pagedMembers);
         }
 
         [HttpGet("{id}")]

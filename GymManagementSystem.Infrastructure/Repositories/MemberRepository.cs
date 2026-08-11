@@ -60,5 +60,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
         {
             return await _context.Members.CountAsync(m => m.GymId == gymId);
         }
+
+        public IQueryable<Member> GetAllAsQueryable()
+        {
+            return _context.Members.AsQueryable();
+        }
     }
 }

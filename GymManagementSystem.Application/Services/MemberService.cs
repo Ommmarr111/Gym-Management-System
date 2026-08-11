@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Exceptions;
+using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -17,11 +19,56 @@ namespace GymManagementSystem.Application.Services
             _mapper = mapper;
         }
 
-        public async Task<List<MemberDto>> GetAllMembersAsync()
+        public async Task<PagedResult<MemberDto>> GetAllMembersAsync(MemberRequestParams parameters)
         {
-            var members = await _unitOfWork.Members.GetAllAsync();
+            // 1. Get the IQueryable from the repo
+            var query = _unitOfWork.Members.GetAllAsQueryable();
 
-            return _mapper.Map<List<MemberDto>>(members);
+            // 2. Apply Searching & Filtering
+            if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
+            {
+                var search = parameters.SearchTerm.ToLower();
+                query = query.Where(m =>
+                    m.FirstName.ToLower().Contains(search) ||
+                    m.LastName.ToLower().Contains(search) ||
+                    m.Email.ToLower().Contains(search) ||
+                    m.PhoneNumber.Contains(search));
+            }
+
+            if (parameters.GymId.HasValue)
+            {
+                query = query.Where(m => m.GymId == parameters.GymId.Value);
+            }
+
+            // 3. Apply Sorting
+            if (!string.IsNullOrWhiteSpace(parameters.SortBy))
+            {
+                query = parameters.SortBy.ToLower() switch
+                {
+                    "firstname" => parameters.IsDescending ? query.OrderByDescending(m => m.FirstName) : query.OrderBy(m => m.FirstName),
+                    "lastname" => parameters.IsDescending ? query.OrderByDescending(m => m.LastName) : query.OrderBy(m => m.LastName),
+                    "email" => parameters.IsDescending ? query.OrderByDescending(m => m.Email) : query.OrderBy(m => m.Email),
+                    "joindate" => parameters.IsDescending ? query.OrderByDescending(m => m.JoinDate) : query.OrderBy(m => m.JoinDate),
+                    _ => query.OrderBy(m => m.Id)
+                };
+            }
+            else
+            {
+                query = query.OrderBy(m => m.Id); // Required fallback for EF Core Skip/Take
+            }
+
+            // 4. Execute the DB Query and get Paged Entities
+            var pagedEntities = await query.ToPagedResultAsync(parameters.PageNumber, parameters.PageSize);
+
+            // 5. Map the Data to DTOs
+            var memberDtos = _mapper.Map<List<MemberDto>>(pagedEntities.Items);
+
+            // 6. Return a new PagedResult wrapped around the DTOs
+            return new PagedResult<MemberDto>(
+                memberDtos,
+                pagedEntities.TotalCount,
+                pagedEntities.CurrentPage,
+                pagedEntities.PageSize);
         }
 
         public async Task<MemberDetailsDto> GetMemberByIdAsync(int id)
@@ -33,7 +80,6 @@ namespace GymManagementSystem.Application.Services
 
             return _mapper.Map<MemberDetailsDto>(member);
         }
-
 
         public async Task<MemberDetailsDto> CreateMemberAsync(CreateMemberDto dto)
         {
@@ -74,7 +120,7 @@ namespace GymManagementSystem.Application.Services
             if (emailExists && existingMember.Email != dto.Email)
                 throw new BusinessRuleException($"Email {dto.Email} is already taken by another member");
 
-            _mapper.Map(dto, existingMember); // Update existing member with new values from DTO
+            _mapper.Map(dto, existingMember);
 
             await _unitOfWork.Members.UpdateAsync(existingMember);
             await _unitOfWork.SaveChangesAsync();
@@ -90,5 +136,6 @@ namespace GymManagementSystem.Application.Services
             await _unitOfWork.Members.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
         }
+
     }
 }
