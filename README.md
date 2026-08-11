@@ -20,7 +20,6 @@ A comprehensive RESTful API for gym management built with **ASP.NET Core Web API
 * [Database Schema](#-database-schema)
 * [Design Patterns](#-design-patterns)
 * [Business Rules](#-business-rules)
-* [Roadmap](#-roadmap)
 * [License](#-license)
 * [Author](#-author)
 
