@@ -69,5 +69,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
             _context.Subscriptions.Update(subscription);
             return Task.CompletedTask;
         }
+
+        public IQueryable<Subscription> GetAllAsQueryable()
+        {
+            return _context.Subscriptions.AsQueryable();
+        }
     }
 }

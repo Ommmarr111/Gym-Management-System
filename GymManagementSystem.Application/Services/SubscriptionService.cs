@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Subscriptions;
 using GymManagementSystem.Application.Exceptions;
+using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -68,10 +70,71 @@ namespace GymManagementSystem.Application.Services
             return _mapper.Map<SubscriptionDto>(subscription);
         }
 
-        public async Task<List<SubscriptionDto>> GetAllSubscriptionsAsync()
+        public async Task<PagedResult<SubscriptionDto>> GetAllSubscriptionsAsync(SubscriptionRequestParams subscriptionRequestParams)
         {
-            var subs = await _unitOfWork.Subscriptions.GetAllAsync();
-            return _mapper.Map<List<SubscriptionDto>>(subs);  // ✅ Use mapper
+            var query = _unitOfWork.Subscriptions.GetAllAsQueryable();
+
+            // 1. Apply Status Filter
+
+
+            if (!string.IsNullOrWhiteSpace(subscriptionRequestParams.Status))
+            {
+                var search = subscriptionRequestParams.Status.ToLower();
+                query = query.Where(s => s.Status.ToLower() == search);
+            }
+
+            // 2. Apply Foreign Key Filters
+
+            if (subscriptionRequestParams.MemberId.HasValue)
+            {
+                query = query.Where(s => s.MemberId == subscriptionRequestParams.MemberId.Value);
+            }
+
+            if (subscriptionRequestParams.MembershipPlanId.HasValue)
+            {
+                query = query.Where(s => s.MembershipPlanId == subscriptionRequestParams.MembershipPlanId.Value);
+            }
+
+            // 3. Apply Date Filters 
+            if (subscriptionRequestParams.StartDate.HasValue)
+            {
+                query = query.Where(s => s.StartDate >= subscriptionRequestParams.StartDate.Value);
+            }
+
+            if (subscriptionRequestParams.EndDate.HasValue)
+            {
+                query = query.Where(s => s.EndDate <= subscriptionRequestParams.EndDate.Value);
+            }
+
+            // 4. Apply sorting
+
+            if (!string.IsNullOrWhiteSpace(subscriptionRequestParams.SortBy))
+            {
+                query = subscriptionRequestParams.SortBy.ToLower() switch
+                {
+                    "startdate" => subscriptionRequestParams.IsDescending ? query.OrderByDescending(s => s.StartDate) : query.OrderBy(s => s.StartDate),
+                    "enddate" => subscriptionRequestParams.IsDescending ? query.OrderByDescending(s => s.EndDate) : query.OrderBy(s => s.EndDate),
+                    "amountpaid" => subscriptionRequestParams.IsDescending ? query.OrderByDescending(s => s.AmountPaid) : query.OrderBy(s => s.AmountPaid),
+                    _ => query.OrderBy(s => s.Id)
+                };
+            }
+            else
+            {
+                query = query.OrderBy(s => s.Id); // Required fallback for EF Core Skip/Take
+            }
+            // 5. Execute the Engine (Hits the Database)
+            var pagedEntities = await query.ToPagedResultAsync
+                (subscriptionRequestParams.PageNumber, subscriptionRequestParams.PageSize);
+
+            // 6. Map the Data to DTOs
+            var subscriptionDtos = _mapper.Map<List<SubscriptionDto>>(pagedEntities.Items);
+
+            // 7. Return a new PagedResult wrapped around the DTOs
+            return new PagedResult<SubscriptionDto>(
+                subscriptionDtos,
+                pagedEntities.TotalCount,
+                pagedEntities.CurrentPage,
+                pagedEntities.PageSize);
         }
 
         public async Task<SubscriptionDto> GetSubscriptionByIdAsync(int id)
@@ -97,18 +160,6 @@ namespace GymManagementSystem.Application.Services
             sub.Status = "Cancelled";  // ✅ Update directly
             await _unitOfWork.Subscriptions.UpdateAsync(sub);
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        public async Task<List<SubscriptionDto>> GetSubscriptionsByMemberIdAsync(int memberId)
-        {
-            var member = await _unitOfWork.Members.GetByIdAsync(memberId);
-
-            if (member == null)
-                throw new NotFoundException($"Member with id = {memberId} not found");
-
-            var subs = await _unitOfWork.Subscriptions.GetByMemberIdAsync(memberId);
-
-            return _mapper.Map<List<SubscriptionDto>>(subs);  // ✅ Use mapper
         }
 
         public async Task FreezeSubscriptionAsync(int subscriptionId, FreezeSubscriptionDto dto)

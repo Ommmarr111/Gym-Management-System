@@ -1,4 +1,5 @@
 ﻿using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Subscriptions;
 using GymManagementSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,9 +24,9 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] SubscriptionRequestParams subscriptionRequestParams)
         {
-            var subs = await _service.GetAllSubscriptionsAsync();
+            var subs = await _service.GetAllSubscriptionsAsync(subscriptionRequestParams);
             return Ok(subs);
         }
 
@@ -43,12 +44,6 @@ namespace GymManagementSystem.Api.Controllers
             return Ok(new { Message = "Subscription cancelled successfully." });
         }
 
-        [HttpGet("member/{memberId}")]
-        public async Task<IActionResult> GetByMemberId(int memberId)
-        {
-            var subs = await _service.GetSubscriptionsByMemberIdAsync(memberId);
-            return Ok(subs);
-        }
         [HttpPost("{id}/freeze")]
         public async Task<IActionResult> Freeze(int id, [FromBody] FreezeSubscriptionDto dto)
         {

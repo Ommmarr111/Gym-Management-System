@@ -12,5 +12,8 @@ namespace GymManagementSystem.Application.Interfaces
         Task UpdateAsync(Subscription subscription);
 
         Task<Subscription?> GetActiveSubscriptionAsync(int memberId, int membershipPlanId);
+
+        IQueryable<Subscription> GetAllAsQueryable();
+
     }
 }
