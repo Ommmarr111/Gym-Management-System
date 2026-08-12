@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
+using GymManagementSystem.Api.Middleware;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Mappings;
 using GymManagementSystem.Application.Services;
@@ -84,15 +85,11 @@ namespace GymManagementSystem.Api
             builder.Services.AddScoped<IAttendanceService, AttendanceService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
 
-            // EXCEPTION HANDLERS
-            builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-            builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-            builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
-            builder.Services.AddExceptionHandler<UnauthorizedExceptionHandler>();
-            builder.Services.AddExceptionHandler<ForbiddenExceptionHandler>();
-
-            // Global ALWAYS last
+            // EXCEPTION HANDLING
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+            // ProblemDetails middleware for standardized error responses
+            builder.Services.AddProblemDetails();
 
             // VALIDATION
             builder.Services.AddFluentValidationAutoValidation();
@@ -118,7 +115,7 @@ namespace GymManagementSystem.Api
             app.UseCors("MyPolicy");
 
 
-            app.UseExceptionHandler(opt => { });
+            app.UseExceptionHandler();
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
