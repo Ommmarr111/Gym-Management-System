@@ -56,5 +56,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
                 .Include(a => a.Gym)
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
+
+        public IQueryable<Attendance> GetAllAsQueryable()
+        {
+            return _context.Attendances.AsQueryable();
+        }
     }
 }

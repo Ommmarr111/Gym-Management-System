@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Attendance;
 using GymManagementSystem.Application.Exceptions;
+using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 
@@ -63,6 +65,62 @@ namespace GymManagementSystem.Application.Services
             var history = await _unitOfWork.Attendances.GetByMemberIdAsync(memberId);
 
             return _mapper.Map<List<AttendanceDto>>(history);
+        }
+
+        public async Task<PagedResult<AttendanceDto>> GetAttendanceHistoryAsync(AttendanceRequestParams parameters)
+        {
+            var query = _unitOfWork.Attendances.GetAllAsQueryable();
+
+            // 1. Foreign Key Filters
+            if (parameters.MemberId.HasValue)
+            {
+                query = query.Where(a => a.MemberId == parameters.MemberId.Value);
+            }
+
+            if (parameters.GymId.HasValue)
+            {
+                query = query.Where(a => a.GymId == parameters.GymId.Value);
+            }
+
+            // 2. Date Range Filters
+            if (parameters.CheckInDateFrom.HasValue)
+            {
+                query = query.Where(a => a.CheckInTime >= parameters.CheckInDateFrom.Value);
+            }
+
+            if (parameters.CheckInDateTo.HasValue)
+            {
+                query = query.Where(a => a.CheckInTime <= parameters.CheckInDateTo.Value);
+            }
+
+            // 3. Sorting (Defaulting to Newest First)
+            if (!string.IsNullOrWhiteSpace(parameters.SortBy))
+            {
+                query = parameters.SortBy.ToLower() switch
+                {
+                    "checkintime" => parameters.IsDescending ? query.OrderByDescending(a => a.CheckInTime) : query.OrderBy(a => a.CheckInTime),
+                    "checkouttime" => parameters.IsDescending ? query.OrderByDescending(a => a.CheckOutTime) : query.OrderBy(a => a.CheckOutTime),
+                    _ => query.OrderByDescending(a => a.Id)
+                };
+            }
+            else
+            {
+                // For logs, always default to newest records first!
+                query = query.OrderByDescending(a => a.Id);
+            }
+
+            // 4. Execute Engine
+            var pagedEntities = await query.ToPagedResultAsync(parameters.PageNumber, parameters.PageSize);
+
+            // 5. Map to DTOs
+            var attendanceDtos = _mapper.Map<List<AttendanceDto>>(pagedEntities.Items);
+
+            // 6. Package and Return
+            return new PagedResult<AttendanceDto>(
+                attendanceDtos,
+                pagedEntities.TotalCount,
+                pagedEntities.CurrentPage,
+                pagedEntities.PageSize);
         }
     }
 }
