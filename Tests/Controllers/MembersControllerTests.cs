@@ -1,5 +1,6 @@
 ﻿using GymManagementSystem.Api.Controllers;
 using GymManagementSystem.Application.DTOs;
+using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -12,9 +13,9 @@ namespace GymManagementSystem.Tests.Controllers
         public async Task GetAll_Should_Return_Ok()
         {
             // Arrange
-
             var mock = new Mock<IMemberService>();
-            var expectedMembers = new List<MemberDto>
+
+            var items = new List<MemberDto>
             {
                 new MemberDto
                 {
@@ -27,33 +28,33 @@ namespace GymManagementSystem.Tests.Controllers
                     GymName = "Health Club",
                 }
             };
-            mock.Setup(c => c.GetAllMembersAsync()).ReturnsAsync(expectedMembers);
 
+            var expectedPagedResult = new PagedResult<MemberDto>(items, totalCount: 2, currentPage: 1, pageSize: 10);
+
+            mock.Setup(c => c.GetAllMembersAsync(It.IsAny<MemberRequestParams>()))
+                .ReturnsAsync(expectedPagedResult);
 
             var controller = new MembersController(mock.Object);
 
-            // Act
+            var requestParams = new MemberRequestParams { PageNumber = 1, PageSize = 10 };
 
-            var result = await controller.GetAll();
+            // Act
+            var result = await controller.GetAll(requestParams);
 
             // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
 
-            var okResult = Assert.IsType<OkObjectResult>(result); // Check if the result is of type OkObjectResult
+            // Check if the returned value is now a PagedResult instead of a List
+            var returnedResult = Assert.IsType<PagedResult<MemberDto>>(okResult.Value);
+            Assert.Same(expectedPagedResult, returnedResult);
 
-            mock.Verify(c => c.GetAllMembersAsync(), Times.Once()); // Verify that the GetAllMembersAsync method was called exactly once
-
-            var returnedMembers = Assert.IsType<List<MemberDto>>(okResult.Value);
-            Assert.Same(expectedMembers, returnedMembers); // Check if the returned value is the same as the expected members
+            mock.Verify(c => c.GetAllMembersAsync(requestParams), Times.Once());
         }
 
-
-
         [Fact]
-
         public async Task GetById_Should_Return_Ok()
         {
             // Arrange
-
             var mock = new Mock<IMemberService>();
 
             var expected = new MemberDetailsDto
@@ -65,22 +66,16 @@ namespace GymManagementSystem.Tests.Controllers
             mock.Setup(c => c.GetMemberByIdAsync(1)).ReturnsAsync(expected);
             var controller = new MembersController(mock.Object);
 
-
             // Act
-
             var result = await controller.GetById(1);
 
             // Assert
-
-            var okResult = Assert.IsType<OkObjectResult>(result); // Check if the result is of type OkObjectResult
-
+            var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedMember = Assert.IsType<MemberDetailsDto>(okResult.Value);
 
-            Assert.Same(expected, returnedMember); // Check if the returned value is the same as the expected member
-
-            mock.Verify(c => c.GetMemberByIdAsync(1), Times.Once()); // Verify that the GetMemberByIdAsync method was called exactly once
+            Assert.Same(expected, returnedMember);
+            mock.Verify(c => c.GetMemberByIdAsync(1), Times.Once());
         }
-
 
         [Fact]
         public async Task Create_Should_Return_CreatedAtAction()
@@ -115,9 +110,7 @@ namespace GymManagementSystem.Tests.Controllers
             var MembersController = new MembersController(mock.Object);
 
             // Act
-
             var result = await MembersController.Create(dto);
-
 
             // Assert
             var CreatedResult = Assert.IsType<CreatedAtActionResult>(result);
@@ -131,9 +124,6 @@ namespace GymManagementSystem.Tests.Controllers
             Assert.Equal(createdMember.Id, routeValues["id"]);
             Assert.Equal(nameof(MembersController.GetById), actionName);
             mock.Verify(c => c.CreateMemberAsync(dto), Times.Once());
-
-
-
         }
 
         [Fact]
@@ -151,41 +141,29 @@ namespace GymManagementSystem.Tests.Controllers
             };
 
             var mock = new Mock<IMemberService>();
-
             var controller = new MembersController(mock.Object);
-            // Act
 
+            // Act
             var result = await controller.Update(1, dto);
 
-
             // Assert
-
-            var noContent = Assert.IsType<NoContentResult>(result);
+            Assert.IsType<NoContentResult>(result);
             mock.Verify(c => c.UpdateMemberAsync(1, dto), Times.Once());
-
-
         }
 
         [Fact]
-
         public async Task Delete_Should_Return_NoContent()
         {
-
-
+            // Arrange
             var mock = new Mock<IMemberService>();
-
             var controller = new MembersController(mock.Object);
 
             // Act
-
             var result = await controller.Delete(1);
 
             // Assert
-
-            var noContent = Assert.IsType<NoContentResult>(result);
+            Assert.IsType<NoContentResult>(result);
             mock.Verify(c => c.DeleteMemberAsync(1), Times.Once());
-
-
         }
     }
 }

@@ -2,6 +2,7 @@
 using GymManagementSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GymManagementSystem.API.Controllers
 {
@@ -17,6 +18,8 @@ namespace GymManagementSystem.API.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("StrictAuth")]
+
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             var response = await _authService.LoginAsync(dto);
