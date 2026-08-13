@@ -11,9 +11,12 @@ using GymManagementSystem.Infrastructure.Repositories;
 using GymManagementSystem.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 
 namespace GymManagementSystem.Api
 {
@@ -75,6 +78,69 @@ namespace GymManagementSystem.Api
             });
 
 
+            //  Rate Limiting Service
+            builder.Services.AddRateLimiter(options =>
+            {
+                // Return standard 429 Too Many Requests when limits are hit
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                // The callback triggered when a request is blocked
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    // 1. Set the content type to JSON
+                    context.HttpContext.Response.ContentType = "application/json";
+
+                    // 2. Attempt to read the Retry-After value if the limiter provides it
+                    var retryAfter = TimeSpan.Zero;
+                    if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue))
+                    {
+                        retryAfter = retryAfterValue;
+                    }
+
+                    // 3. Construct a standardized error response object
+                    var response = new
+                    {
+                        StatusCode = 429,
+                        Error = "Too Many Requests",
+                        Message = "You have exceeded the allowed request limit.",
+
+                        // Calculate exact seconds if available, otherwise default to a message
+
+                        RetryAfterSeconds = retryAfter.TotalSeconds > 0 ? (int)retryAfter.TotalSeconds : (int?)null
+
+                    };
+
+                    // 4. Serialize and write the response body
+                    await context.HttpContext.Response.WriteAsync(
+                        JsonSerializer.Serialize(response),
+                        cancellationToken);
+                };
+                // GLOBAL POLICY: Token Bucket 
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    RateLimitPartition.GetTokenBucketLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: partition => new TokenBucketRateLimiterOptions
+                        {
+                            TokenLimit = 100,             // Maximum burst size
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0,               // Do not queue, reject immediately
+                            ReplenishmentPeriod = TimeSpan.FromMinutes(1), // Refill every minute
+                            TokensPerPeriod = 100,        // Add 100 tokens per minute
+                            AutoReplenishment = true
+                        }));
+
+                // NAMED POLICY : Sliding Window for Auth endpoints
+                options.AddSlidingWindowLimiter("StrictAuth", config =>
+                {
+                    config.PermitLimit = 5;               // Max 5 attempts
+                    config.Window = TimeSpan.FromMinutes(1); // Per minute
+                    config.SegmentsPerWindow = 3;         // Granularity of the slide
+                    config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    config.QueueLimit = 0;
+                });
+            });
+
+
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Add services to the container.
@@ -114,6 +180,7 @@ namespace GymManagementSystem.Api
 
             app.UseCors("MyPolicy");
 
+            app.UseRateLimiter();
 
             app.UseExceptionHandler();
             app.UseHttpsRedirection();
