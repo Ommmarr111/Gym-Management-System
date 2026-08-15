@@ -1,5 +1,6 @@
 ﻿using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GymManagementSystem.Infrastructure.Repositories
 {
@@ -43,7 +44,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
         {
             return await _context.SaveChangesAsync(cancellationToken);
         }
-
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
+        }
         public void Dispose()
         {
             _context.Dispose();

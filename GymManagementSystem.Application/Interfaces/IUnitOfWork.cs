@@ -1,4 +1,6 @@
-﻿namespace GymManagementSystem.Application.Interfaces
+﻿using Microsoft.EntityFrameworkCore.Storage;
+
+namespace GymManagementSystem.Application.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
@@ -11,7 +13,7 @@
 
         IRefreshTokenRepository RefreshTokens { get; }
 
-
+        Task<IDbContextTransaction> BeginTransactionAsync();
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

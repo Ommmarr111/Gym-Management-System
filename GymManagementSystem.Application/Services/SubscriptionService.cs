@@ -22,18 +22,15 @@ namespace GymManagementSystem.Application.Services
         public async Task<SubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto dto)
         {
             var member = await _unitOfWork.Members.GetByIdAsync(dto.MemberId);
-
             if (member == null)
                 throw new NotFoundException($"Member with id = {dto.MemberId} not found");
 
             var plan = await _unitOfWork.MembershipPlans.GetByIdAsync(dto.MembershipPlanId);
-
             if (plan == null)
                 throw new NotFoundException($"Membership plan with id = {dto.MembershipPlanId} not found");
 
             var activeSubscription = await _unitOfWork.Subscriptions
                 .GetActiveSubscriptionAsync(dto.MemberId, dto.MembershipPlanId);
-
             if (activeSubscription != null)
                 throw new BusinessRuleException(
                     $"Member with id = {dto.MemberId} already has an active subscription for this plan");
@@ -51,21 +48,33 @@ namespace GymManagementSystem.Application.Services
                 Status = "Active"
             };
 
-            await _unitOfWork.Subscriptions.AddAsync(subscription);
-            await _unitOfWork.SaveChangesAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync();
 
-            var payment = new Payment
+            try
             {
-                SubscriptionId = subscription.Id,
-                Amount = plan.Price,
-                PaymentDate = DateTime.UtcNow,
-                PaymentMethod = "Cash",
-                Status = "Completed",
-                TransactionReference = $"TXN-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}"
-            };
+                await _unitOfWork.Subscriptions.AddAsync(subscription);
+                await _unitOfWork.SaveChangesAsync();
 
-            await _unitOfWork.Payments.AddAsync(payment);
-            await _unitOfWork.SaveChangesAsync();
+                var payment = new Payment
+                {
+                    SubscriptionId = subscription.Id,
+                    Amount = plan.Price,
+                    PaymentDate = DateTime.UtcNow,
+                    PaymentMethod = "Cash",
+                    Status = "Completed",
+                    TransactionReference = $"TXN-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}"
+                };
+
+                await _unitOfWork.Payments.AddAsync(payment);
+                await _unitOfWork.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
 
             return _mapper.Map<SubscriptionDto>(subscription);
         }
