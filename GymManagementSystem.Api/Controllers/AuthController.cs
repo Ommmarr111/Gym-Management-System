@@ -22,7 +22,10 @@ namespace GymManagementSystem.API.Controllers
 
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
             var response = await _authService.LoginAsync(dto);
+
             return Ok(response);
         }
 
@@ -32,6 +35,15 @@ namespace GymManagementSystem.API.Controllers
         {
             var response = await _authService.RegisterAsync(dto);
             return Ok(response);
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            var result =
+                await _authService.RefreshTokenAsync(dto.RefreshToken);
+
+            return Ok(result);
         }
     }
 }

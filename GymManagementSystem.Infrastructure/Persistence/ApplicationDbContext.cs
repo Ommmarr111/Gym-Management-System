@@ -19,6 +19,10 @@ namespace GymManagementSystem.Infrastructure.Persistence
         public DbSet<Attendance> Attendances { get; set; }
         public DbSet<Member> Members { get; set; }
 
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+
+
         #endregion
 
         protected override void OnModelCreating(ModelBuilder builder)

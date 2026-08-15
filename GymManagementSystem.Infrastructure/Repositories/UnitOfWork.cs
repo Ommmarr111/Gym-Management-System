@@ -13,11 +13,14 @@ namespace GymManagementSystem.Infrastructure.Repositories
         private ISubscriptionRepository? _subscriptions;
         private IAttendanceRepository? _attendances;
         private IPaymentRepository? _payments;
-
+        private IRefreshTokenRepository? _refreshTokens;
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
         }
+
+        public IRefreshTokenRepository RefreshTokens =>
+            _refreshTokens ??= new RefreshTokenRepository(_context);
 
         public IGymRepository Gyms =>
             _gyms ??= new GymRepository(_context);

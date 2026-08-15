@@ -7,5 +7,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task<AuthResponseDto> RegisterAsync(RegisterDto request);
 
         Task<AuthResponseDto> LoginAsync(LoginDto request);
+
+        Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
     }
 }

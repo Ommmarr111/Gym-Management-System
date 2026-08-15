@@ -9,6 +9,9 @@
         IAttendanceRepository Attendances { get; }
         IPaymentRepository Payments { get; }
 
+        IRefreshTokenRepository RefreshTokens { get; }
+
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }
