@@ -1,6 +1,7 @@
 ﻿using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
@@ -17,6 +18,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetAll([FromQuery] MemberRequestParams parameters)
         {
             var pagedMembers = await _service.GetAllMembersAsync(parameters);
@@ -24,6 +26,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetById(int id)
         {
             var member = await _service.GetMemberByIdAsync(id);
@@ -31,6 +34,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create([FromBody] CreateMemberDto dto)
         {
             var createdMember = await _service.CreateMemberAsync(dto);
@@ -39,6 +43,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] CreateMemberDto dto)
         {
             await _service.UpdateMemberAsync(id, dto);
@@ -46,6 +51,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             await _service.DeleteMemberAsync(id);

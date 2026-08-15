@@ -1,6 +1,7 @@
 ﻿using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Attendance;
 using GymManagementSystem.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
@@ -17,6 +18,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager,Receptionist")]       // front desk checks members in
         public async Task<IActionResult> CheckIn([FromBody] CheckInDto dto)
         {
             var result = await _attendanceService.CheckInAsync(dto);
@@ -24,6 +26,8 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Manager")]                    // reporting, not front-desk use
+
         public async Task<IActionResult> GetHistory([FromQuery] AttendanceRequestParams parameters)
         {
             var result = await _attendanceService.GetAttendanceHistoryAsync(parameters);
@@ -31,6 +35,8 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet("gym/{gymId}")]
+        [Authorize(Roles = "Admin,Manager")]                    // reporting, not front-desk use
+
         public async Task<IActionResult> GetByGymId(int gymId)
         {
             var history = await _attendanceService.GetGymAttendanceAsync(gymId);

@@ -1,6 +1,7 @@
 ﻿using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Subscriptions;
 using GymManagementSystem.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
@@ -17,6 +18,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager,Receptionist")]
         public async Task<IActionResult> Create([FromBody] CreateSubscriptionDto dto)
         {
             var subscription = await _service.CreateSubscriptionAsync(dto);
@@ -24,6 +26,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize] // any authenticated staff
         public async Task<IActionResult> GetAll([FromQuery] SubscriptionRequestParams subscriptionRequestParams)
         {
             var subs = await _service.GetAllSubscriptionsAsync(subscriptionRequestParams);
@@ -31,6 +34,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize] // any authenticated staff
         public async Task<IActionResult> GetById(int id)
         {
             var sub = await _service.GetSubscriptionByIdAsync(id);
@@ -38,6 +42,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost("{id}/cancel")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Cancel(int id)
         {
             await _service.CancelSubscriptionAsync(id);
@@ -45,6 +50,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost("{id}/freeze")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Freeze(int id, [FromBody] FreezeSubscriptionDto dto)
         {
             await _service.FreezeSubscriptionAsync(id, dto);
@@ -52,6 +58,7 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpPost("{id}/unfreeze")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Unfreeze(int id)
         {
             await _service.UnfreezeSubscriptionAsync(id);
