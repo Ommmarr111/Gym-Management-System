@@ -228,12 +228,14 @@ namespace GymManagementSystem.Application.Services
                 throw new UnauthorizedException(
                     "Invalid refresh token");
 
-            // 4. Token is expired or already revoked
-            if (!storedToken.IsActive)
-                throw new UnauthorizedException(
-                    "Refresh token is expired or revoked");
+            // 4. Check if the token is expired or revoked
+            var rowsAffected = await _unitOfWork.RefreshTokens.RevokeIfActiveAsync(storedToken.Id);
 
-            // 5. Find the user
+            // 5. If no rows were affected, it means the token was either expired or already revoked
+            if (rowsAffected == 0)
+                throw new UnauthorizedException("Refresh token is expired or revoked");
+
+            // 6. Find the user
             var user =
                 await _userManager.FindByIdAsync(
                     storedToken.UserId);
@@ -241,12 +243,6 @@ namespace GymManagementSystem.Application.Services
             if (user == null)
                 throw new UnauthorizedException(
                     "User associated with refresh token not found");
-
-            // 6. Revoke the old refresh token
-            storedToken.RevokedOn = DateTime.UtcNow;
-
-            await _unitOfWork.RefreshTokens
-                .UpdateAsync(storedToken);
 
             // 7. Generate a NEW access token
             var roles = await _userManager.GetRolesAsync(user);

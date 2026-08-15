@@ -7,5 +7,7 @@
         Task<RefreshToken?> GetByTokenHashAsync(string tokenHash);
 
         Task UpdateAsync(RefreshToken refreshToken);
+
+        Task<int> RevokeIfActiveAsync(Guid id);
     }
 }

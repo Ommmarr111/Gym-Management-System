@@ -35,5 +35,14 @@ namespace GymManagementSystem.Infrastructure.Repositories
 
             return Task.CompletedTask;
         }
+
+        public async Task<int> RevokeIfActiveAsync(Guid id)
+        {
+            return await _context.RefreshTokens
+                .Where(rt => rt.Id == id
+                           && rt.RevokedOn == null
+                           && rt.ExpiresOn > DateTime.UtcNow)
+                .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedOn, DateTime.UtcNow));
+        }
     }
 }
