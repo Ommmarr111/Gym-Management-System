@@ -1,6 +1,8 @@
 ﻿using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace GymManagementSystem.Infrastructure.Repositories
 {
@@ -47,6 +49,10 @@ namespace GymManagementSystem.Infrastructure.Repositories
         public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
             return await _context.Database.BeginTransactionAsync();
+        }
+        public async Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel)
+        {
+            return await _context.Database.BeginTransactionAsync(isolationLevel);
         }
         public void Dispose()
         {

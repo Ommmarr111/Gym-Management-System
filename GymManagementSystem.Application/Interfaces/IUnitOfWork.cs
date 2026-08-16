@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace GymManagementSystem.Application.Interfaces
 {
@@ -14,6 +15,8 @@ namespace GymManagementSystem.Application.Interfaces
         IRefreshTokenRepository RefreshTokens { get; }
 
         Task<IDbContextTransaction> BeginTransactionAsync();
+
+        Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

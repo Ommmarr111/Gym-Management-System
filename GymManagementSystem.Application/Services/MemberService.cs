@@ -5,6 +5,7 @@ using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
+using System.Data;
 
 namespace GymManagementSystem.Application.Services
 {
@@ -84,25 +85,37 @@ namespace GymManagementSystem.Application.Services
         public async Task<MemberDetailsDto> CreateMemberAsync(CreateMemberDto dto)
         {
             var emailExists = await _unitOfWork.Members.EmailExistsAsync(dto.Email);
-
             if (emailExists)
                 throw new BusinessRuleException($"A member with email {dto.Email} already exists");
 
             var gym = await _unitOfWork.Gyms.GetByIdAsync(dto.GymId);
-
             if (gym == null)
                 throw new NotFoundException($"Gym with id = {dto.GymId} not found");
-
-            var currentMemberCount = await _unitOfWork.Members.CountByGymIdAsync(dto.GymId);
-
-            if (currentMemberCount >= gym.Capacity)
-                throw new BusinessRuleException($"Gym '{gym.Name}' is at full capacity ({gym.Capacity} members)");
 
             var newMember = _mapper.Map<Member>(dto);
             newMember.JoinDate = DateTime.UtcNow;
 
-            var createdMember = await _unitOfWork.Members.AddAsync(newMember);
-            await _unitOfWork.SaveChangesAsync();
+            Member createdMember;
+
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable);
+
+            try
+            {
+                var currentMemberCount = await _unitOfWork.Members.CountByGymIdAsync(dto.GymId);
+
+                if (currentMemberCount >= gym.Capacity)
+                    throw new BusinessRuleException($"Gym '{gym.Name}' is at full capacity ({gym.Capacity} members)");
+
+                createdMember = await _unitOfWork.Members.AddAsync(newMember);
+                await _unitOfWork.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
 
             var memberWithGym = await _unitOfWork.Members.GetByIdAsync(createdMember.Id);
             return _mapper.Map<MemberDetailsDto>(memberWithGym);
