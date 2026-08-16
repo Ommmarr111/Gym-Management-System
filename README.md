@@ -27,9 +27,21 @@ This is an internal operations API for gym staff — not a customer-facing app. 
 
 ## Architecture
 
-```
-Api  →  Application  →  Domain
-Infrastructure implements Application's contracts (repositories, IUnitOfWork)
+```mermaid
+graph TD
+    Api["Api<br/>Controllers, exception handling"]
+    App["Application<br/>DTOs, services, validators"]
+    Domain["Domain<br/>Gym, Member, Subscription..."]
+    Infra["Infrastructure<br/>EF Core, repositories, migrations"]
+
+    Api --> App
+    App --> Domain
+    Infra -.implements.-> App
+
+    style Api fill:#E6F1FB,stroke:#185FA5
+    style App fill:#E6F1FB,stroke:#185FA5
+    style Domain fill:#E6F1FB,stroke:#185FA5
+    style Infra fill:#E1F5EE,stroke:#0F6E56
 ```
 
 - **Api** — controllers, global exception handling middleware
@@ -52,6 +64,45 @@ Roles (`Admin`, `Manager`, `Receptionist`) are seeded and included as JWT claims
 | `Receptionist` | Front-desk actions: enroll members, sell subscriptions, check members in |
 
 Reads are open to any authenticated staff role. `/api/auth/login` is rate-limited to blunt credential-stuffing attempts.
+
+### Entity relationships
+
+```mermaid
+erDiagram
+    GYM ||--o{ MEMBER : hosts
+    GYM ||--o{ MEMBERSHIP_PLAN : offers
+    GYM ||--o{ ATTENDANCE : records
+    MEMBER ||--o{ SUBSCRIPTION : holds
+    MEMBER ||--o{ ATTENDANCE : checks_in
+    MEMBERSHIP_PLAN ||--o{ SUBSCRIPTION : defines
+    SUBSCRIPTION ||--o{ PAYMENT : generates
+    APPLICATION_USER ||--o{ REFRESH_TOKEN : owns
+
+    GYM {
+        int Id PK
+        string Name
+        int Capacity
+    }
+    MEMBER {
+        int Id PK
+        int GymId FK
+        string Email
+        datetime JoinDate
+    }
+    SUBSCRIPTION {
+        int Id PK
+        int MemberId FK
+        int MembershipPlanId FK
+        string Status
+        datetime EndDate
+    }
+    PAYMENT {
+        int Id PK
+        int SubscriptionId FK
+        string Status
+        string TransactionReference
+    }
+```
 
 ---
 
