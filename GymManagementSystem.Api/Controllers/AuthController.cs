@@ -34,14 +34,14 @@ namespace GymManagementSystem.API.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             var response = await _authService.RegisterAsync(dto);
-            return Ok(response);
+            return StatusCode(StatusCodes.Status201Created, response);
         }
 
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
         {
             var result =
-                await _authService.RefreshTokenAsync(dto.RefreshToken);
+            await _authService.RefreshTokenAsync(dto.RefreshToken);
 
             return Ok(result);
         }

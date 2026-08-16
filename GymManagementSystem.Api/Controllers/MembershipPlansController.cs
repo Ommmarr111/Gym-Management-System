@@ -21,7 +21,7 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> CreatePlan([FromBody] CreateMembershipPlanDto request)
         {
             var createdPlanDto = await _service.CreatePlanAsync(request);
-            return Ok(new { Message = "Plan created!", Plan = createdPlanDto });
+            return CreatedAtAction(nameof(GetPlanById), new { id = createdPlanDto.Id }, createdPlanDto);
         }
 
         [HttpGet]
@@ -46,7 +46,7 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] UpdateMembershipPlanDto dto)
         {
             await _service.UpdatePlanAsync(id, dto);
-            return Ok(new { Message = "Plan updated successfully! ✅" });
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
@@ -55,7 +55,7 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             await _service.DeletePlanAsync(id);
-            return Ok(new { Message = "Plan deleted successfully! 🗑️" });
+            return NoContent();
         }
 
         [HttpGet("gym/{gymId}")]

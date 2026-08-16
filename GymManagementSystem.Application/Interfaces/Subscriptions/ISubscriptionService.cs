@@ -8,8 +8,8 @@ namespace GymManagementSystem.Application.Interfaces
         Task<SubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto dto);
         Task<PagedResult<SubscriptionDto>> GetAllSubscriptionsAsync(SubscriptionRequestParams subscriptionRequestParams);
         Task<SubscriptionDto> GetSubscriptionByIdAsync(int id);
-        Task CancelSubscriptionAsync(int subscriptionId);
-        Task FreezeSubscriptionAsync(int subscriptionId, FreezeSubscriptionDto dto);
-        Task UnfreezeSubscriptionAsync(int subscriptionId);
+        Task<SubscriptionDto> CancelSubscriptionAsync(int subscriptionId);
+        Task<SubscriptionDto> FreezeSubscriptionAsync(int subscriptionId, FreezeSubscriptionDto dto);
+        Task<SubscriptionDto> UnfreezeSubscriptionAsync(int subscriptionId);
     }
 }

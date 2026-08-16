@@ -33,8 +33,17 @@ public class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = new ProblemDetails
         {
             Status = statusCode,
-            Title = statusCode == 500 ? "An unexpected server error occurred." : exception.Message,
-            Type = exception.GetType().Name
+            Title = exception switch
+            {
+                ValidationException => "Validation failed",
+                UnauthorizedException => "Authentication required",
+                ForbiddenException => "Access denied",
+                NotFoundException => "Resource not found",
+                BusinessRuleException => "Business rule violation",
+                _ => "An unexpected error occurred"
+            },
+            Detail = statusCode == StatusCodes.Status500InternalServerError ? null : exception.Message,
+            Type = $"https://httpstatuses.com/{statusCode}"
         };
 
         // 4. Send the HTTP response

@@ -22,7 +22,7 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> CheckIn([FromBody] CheckInDto dto)
         {
             var result = await _attendanceService.CheckInAsync(dto);
-            return Ok(result);
+            return StatusCode(StatusCodes.Status201Created, result);
         }
 
         [HttpGet]

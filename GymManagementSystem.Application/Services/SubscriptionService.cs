@@ -155,8 +155,7 @@ namespace GymManagementSystem.Application.Services
 
             return _mapper.Map<SubscriptionDto>(s);  // ✅ Use mapper
         }
-
-        public async Task CancelSubscriptionAsync(int subscriptionId)
+        public async Task<SubscriptionDto> CancelSubscriptionAsync(int subscriptionId)
         {
             var sub = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionId);
 
@@ -166,12 +165,14 @@ namespace GymManagementSystem.Application.Services
             if (sub.Status == "Cancelled")
                 throw new BusinessRuleException($"Subscription with id = {subscriptionId} is already cancelled");
 
-            sub.Status = "Cancelled";  // ✅ Update directly
+            sub.Status = "Cancelled";
             await _unitOfWork.Subscriptions.UpdateAsync(sub);
             await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<SubscriptionDto>(sub);
         }
 
-        public async Task FreezeSubscriptionAsync(int subscriptionId, FreezeSubscriptionDto dto)
+        public async Task<SubscriptionDto> FreezeSubscriptionAsync(int subscriptionId, FreezeSubscriptionDto dto)
         {
             var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionId);
 
@@ -191,9 +192,11 @@ namespace GymManagementSystem.Application.Services
 
             await _unitOfWork.Subscriptions.UpdateAsync(subscription);
             await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<SubscriptionDto>(subscription);
         }
 
-        public async Task UnfreezeSubscriptionAsync(int subscriptionId)
+        public async Task<SubscriptionDto> UnfreezeSubscriptionAsync(int subscriptionId)
         {
             var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionId);
 
@@ -209,6 +212,8 @@ namespace GymManagementSystem.Application.Services
 
             await _unitOfWork.Subscriptions.UpdateAsync(subscription);
             await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<SubscriptionDto>(subscription);
         }
     }
 }

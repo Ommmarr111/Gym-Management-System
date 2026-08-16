@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.DTOs;
+﻿using AutoMapper;
+using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Subscriptions;
 using GymManagementSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace GymManagementSystem.Api.Controllers
     public class SubscriptionsController : ControllerBase
     {
         private readonly ISubscriptionService _service;
+        private readonly IMapper _mapper;
 
-        public SubscriptionsController(ISubscriptionService service)
+        public SubscriptionsController(ISubscriptionService service, IMapper mapper)
         {
             _service = service;
+            _mapper = mapper;
         }
 
         [HttpPost]
@@ -45,24 +48,24 @@ namespace GymManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Cancel(int id)
         {
-            await _service.CancelSubscriptionAsync(id);
-            return Ok(new { Message = "Subscription cancelled successfully." });
+            var subscription = await _service.CancelSubscriptionAsync(id);
+            return Ok(subscription);
         }
 
         [HttpPost("{id}/freeze")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Freeze(int id, [FromBody] FreezeSubscriptionDto dto)
         {
-            await _service.FreezeSubscriptionAsync(id, dto);
-            return Ok(new { Message = "Subscription frozen successfully" });
+            var subscription = await _service.FreezeSubscriptionAsync(id, dto);
+            return Ok(subscription);
         }
 
         [HttpPost("{id}/unfreeze")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Unfreeze(int id)
         {
-            await _service.UnfreezeSubscriptionAsync(id);
-            return Ok(new { Message = "Subscription unfrozen successfully" });
+            var subscription = await _service.UnfreezeSubscriptionAsync(id);
+            return Ok(subscription);
         }
     }
 }
