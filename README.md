@@ -38,10 +38,10 @@ graph TD
     App --> Domain
     Infra -.implements.-> App
 
-    style Api fill:#E6F1FB,stroke:#185FA5
-    style App fill:#E6F1FB,stroke:#185FA5
-    style Domain fill:#E6F1FB,stroke:#185FA5
-    style Infra fill:#E1F5EE,stroke:#0F6E56
+    style Api fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style App fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style Domain fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    style Infra fill:#E1F5EE,stroke:#0F6E56,color:#085041
 ```
 
 - **Api** — controllers, global exception handling middleware
