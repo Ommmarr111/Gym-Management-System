@@ -151,6 +151,11 @@ namespace GymManagementSystem.Api
             builder.Services.AddScoped<IAttendanceService, AttendanceService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
 
+
+            // Add Memory Cache for caching frequently accessed data
+            builder.Services.AddMemoryCache();
+
+
             // EXCEPTION HANDLING
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
