@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using GymManagementSystem.Application.Common.Caching;
 using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Interfaces;
@@ -22,10 +23,9 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<List<MembershipPlanDto>> GetAllPlansAsync()
         {
-            const string cacheKey = "plans";
 
             // 1. Check cache
-            var cachedPlans = _cache.Get<List<MembershipPlanDto>>(cacheKey);
+            var cachedPlans = _cache.Get<List<MembershipPlanDto>>(CacheKeys.Plans.All);
 
             if (cachedPlans is not null)
 
@@ -39,7 +39,7 @@ namespace GymManagementSystem.Application.Services
 
             // 3. Store in cache
             _cache.Set(
-                cacheKey,
+                CacheKeys.Plans.All,
                 planDtos,
                 TimeSpan.FromMinutes(10));
             return planDtos;
@@ -47,10 +47,8 @@ namespace GymManagementSystem.Application.Services
 
         public async Task<MembershipPlanDto> GetPlanByIdAsync(int id)
         {
-            var cacheKey = $"plan:{id}";
-
             // 1. Cache
-            var cachedPlan = _cache.Get<MembershipPlanDto>(cacheKey);
+            var cachedPlan = _cache.Get<MembershipPlanDto>(CacheKeys.Plans.ById(id));
 
             if (cachedPlan is not null)
 
@@ -68,7 +66,7 @@ namespace GymManagementSystem.Application.Services
 
             // 4. Cache
             _cache.Set(
-                cacheKey,
+                CacheKeys.Plans.ById(id),
                 planDto,
                 TimeSpan.FromMinutes(10));
 
@@ -84,8 +82,7 @@ namespace GymManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync();
 
 
-            _cache.Remove("plans");
-            _cache.Remove($"plans:gym:{createdPlan.GymId}");
+            InvalidatePlanCaches(createdPlan);
 
             return _mapper.Map<MembershipPlanDto>(createdPlan);
         }
@@ -101,9 +98,7 @@ namespace GymManagementSystem.Application.Services
 
             await _unitOfWork.MembershipPlans.UpdateAsync(plan);
             await _unitOfWork.SaveChangesAsync();
-            _cache.Remove("plans");
-            _cache.Remove($"plan:{id}");
-            _cache.Remove($"plans:gym:{plan.GymId}");
+            InvalidatePlanCaches(plan);
         }
 
         public async Task DeletePlanAsync(int id)
@@ -122,9 +117,7 @@ namespace GymManagementSystem.Application.Services
             await _unitOfWork.MembershipPlans.UpdateAsync(plan);
             await _unitOfWork.SaveChangesAsync();
 
-            _cache.Remove("plans");
-            _cache.Remove($"plan:{id}");
-            _cache.Remove($"plans:gym:{plan.GymId}");
+            InvalidatePlanCaches(plan);
         }
 
         public async Task<List<MembershipPlanDto>> GetPlansByGymIdAsync(int gymId)
@@ -134,11 +127,9 @@ namespace GymManagementSystem.Application.Services
             if (gym == null)
                 throw new NotFoundException($"Gym with id = {gymId} not found");
 
-            var cacheKey = $"plans:gym:{gymId}";
-
             // 1. Check cache
 
-            var cachedPlans = _cache.Get<List<MembershipPlanDto>>(cacheKey);
+            var cachedPlans = _cache.Get<List<MembershipPlanDto>>(CacheKeys.Plans.ByGymId(gymId));
 
             if (cachedPlans is not null)
             {
@@ -152,11 +143,18 @@ namespace GymManagementSystem.Application.Services
             // 2. Store in cache
 
             _cache.Set(
-                cacheKey,
+                CacheKeys.Plans.ByGymId(gymId),
                 planDtos,
                 TimeSpan.FromMinutes(10));
 
             return planDtos;
+        }
+
+        private void InvalidatePlanCaches(MembershipPlan plan)
+        {
+            _cache.Remove(CacheKeys.Plans.All);
+            _cache.Remove(CacheKeys.Plans.ById(plan.Id));
+            _cache.Remove(CacheKeys.Plans.ByGymId(plan.GymId));
         }
     }
 }
