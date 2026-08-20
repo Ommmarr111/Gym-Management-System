@@ -46,23 +46,18 @@ public class MemberIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     {
         // Arrange
         await ResetDatabaseAsync();
-
         var client = CreateClient();
 
         // Act
         var response = await client.GetAsync("/api/members");
-
         response.EnsureSuccessStatusCode();
-
-        var members = await response.Content
-            .ReadFromJsonAsync<List<MemberDto>>();
+        var result = await response.Content
+            .ReadFromJsonAsync<PagedResult<MemberDto>>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        Assert.NotNull(members);
-
-        Assert.Empty(members);
+        Assert.NotNull(result);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
@@ -70,33 +65,24 @@ public class MemberIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     {
         // Arrange
         await ResetDatabaseAsync();
-
         var client = CreateClient();
-
         await ExecuteWithDbContextAsync(async db =>
         {
             var gym = await TestDataSeeder.SeedGymAsync(db);
-
             await TestDataSeeder.SeedMemberAsync(db, gym);
         });
 
         // Act
         var response = await client.GetAsync("/api/members");
-
         response.EnsureSuccessStatusCode();
-
-        var members = await response.Content
-            .ReadFromJsonAsync<List<MemberDto>>();
+        var result = await response.Content
+            .ReadFromJsonAsync<PagedResult<MemberDto>>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        Assert.NotNull(members);
-
-        Assert.Single(members);
-
-        Assert.Equal("John Doe", members[0].FullName);
-
-        Assert.Equal("Fitness Center", members[0].GymName);
+        Assert.NotNull(result);
+        Assert.Single(result.Items);
+        Assert.Equal("John Doe", result.Items[0].FullName);
+        Assert.Equal("Fitness Center", result.Items[0].GymName);
     }
 }

@@ -44,4 +44,24 @@ public static class TestDataSeeder
 
         return member;
     }
+
+    public static async Task<MembershipPlan> SeedMembershipPlanAsync(
+     ApplicationDbContext db,
+     Gym gym,
+     decimal price = 1000,
+     string name = "Standard Plan",
+     int durationInDays = 30)
+    {
+        var plan = new MembershipPlan
+        {
+            Name = name,
+            Price = price,
+            DurationInDays = durationInDays,
+            Description = "Test plan",
+            GymId = gym.Id
+        };
+        db.MembershipPlans.Add(plan);
+        await db.SaveChangesAsync();
+        return plan;
+    }
 }
