@@ -63,7 +63,7 @@ namespace GymManagementSystem.Infrastructure.Repositories
 
         public IQueryable<Member> GetAllAsQueryable()
         {
-            return _context.Members.AsQueryable();
+            return _context.Members.Include(m => m.Gym);
         }
     }
 }
