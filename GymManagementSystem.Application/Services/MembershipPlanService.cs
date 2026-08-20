@@ -24,25 +24,14 @@ namespace GymManagementSystem.Application.Services
         public async Task<List<MembershipPlanDto>> GetAllPlansAsync()
         {
 
-            // 1. Check cache
-            var cachedPlans = _cache.Get<List<MembershipPlanDto>>(CacheKeys.Plans.All);
-
-            if (cachedPlans is not null)
-
-                return cachedPlans;
-
-
-            // 2. Cache miss → Database
-            var plans = await _unitOfWork.MembershipPlans.GetAllAsync();
-
-            var planDtos = _mapper.Map<List<MembershipPlanDto>>(plans);
-
-            // 3. Store in cache
-            _cache.Set(
+            return await _cache.GetOrCreateAsync(
                 CacheKeys.Plans.All,
-                planDtos,
-                TimeSpan.FromMinutes(10));
-            return planDtos;
+                async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+                    var plans = await _unitOfWork.MembershipPlans.GetAllAsync();
+                    return _mapper.Map<List<MembershipPlanDto>>(plans);
+                }) ?? new List<MembershipPlanDto>();
         }
 
         public async Task<MembershipPlanDto> GetPlanByIdAsync(int id)
