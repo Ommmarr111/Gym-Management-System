@@ -20,7 +20,7 @@ This is an internal operations API for gym staff — not a customer-facing app. 
 
 **API:** ASP.NET Core 9 · EF Core · SQL Server · ASP.NET Core Identity + JWT
 **Validation/Mapping:** FluentValidation · AutoMapper
-**Caching:** `IMemoryCache` cache-aside pattern with `GetOrCreateAsync` (stampede-safe); Redis migration planned for multi-instance deployments
+**Caching:** `IMemoryCache` (most endpoints) and `IDistributedCache`/Redis (gym-scoped plan lookups) — mixed as part of an in-progress migration, see Caching section
 **Testing:** xUnit · `WebApplicationFactory`
 **Protection:** ASP.NET Core rate limiting on `/api/auth/login`
 
@@ -132,13 +132,20 @@ The distinction that mattered across all three: an explicit transaction, an atom
 
 ## Caching
 
-Membership plan reads (`GetAllPlansAsync`, `GetPlanByIdAsync`, `GetPlansByGymIdAsync`) use the cache-aside pattern via `IMemoryCache.GetOrCreateAsync`, rather than a manual check-then-set — the built-in method locks per-key, so concurrent requests during a cache miss don't all hit the database at once (a naive check-then-set doesn't protect against this).
+Membership plan reads use a cache-aside pattern, currently split across two backends as part of an incremental migration:
 
-Writes (create/update/delete) explicitly invalidate the relevant cache keys — the "all plans" list, the single-plan key, and the gym-scoped list — rather than relying on TTL expiry alone, so staff never see stale prices or plan details after an edit.
+- `GetAllPlansAsync` and `GetPlanByIdAsync` use `IMemoryCache.GetOrCreateAsync` (in-process, single-instance) — the built-in method locks per-key, so concurrent requests during a cache miss don't all hit the database at once.
+- `GetPlansByGymIdAsync` uses `IDistributedCache` (Redis) via a small `GetOrSetAsync` helper, since this was the endpoint targeted for a shared, multi-instance-safe cache.
 
-Manual measurement on the plans-list endpoint: cold reads (DB hit) consistently over 100ms, dropping to 7–10ms on a cache hit. This is currently `IMemoryCache` (in-process); a Redis-backed `IDistributedCache` swap is the next step, since `IMemoryCache` doesn't share state across multiple app instances.
+Writes (create/update/delete) invalidate all three cache keys across both backends — the in-memory "all plans" and "single plan" keys, and the Redis-backed gym-scoped key — rather than relying on TTL expiry alone.
 
-Cache invalidation is covered by integration tests (see Testing) — writing them caught a real bug: the member repository was missing `.Include(m => m.Gym)`, so `GymName` silently returned a fallback value instead of the actual gym.
+Manual measurement on the gym-scoped endpoint: cold reads (DB hit) consistently over 100ms, dropping to single-digit ms on a cache hit.
+
+**Known gaps, left deliberate rather than hidden:**
+- The two `IMemoryCache` endpoints haven't been migrated to Redis yet — in a real multi-instance deployment they'd serve stale/inconsistent data across instances, unlike the Redis-backed endpoint.
+- The Redis path doesn't yet guard against a cache stampede (concurrent requests all missing the cache at once and hitting the DB together). `IMemoryCache.GetOrCreateAsync` handles this per-key locking for free; `IDistributedCache` has no built-in equivalent, so this needs a distributed lock (e.g. Redis `SETNX` or RedLock) as a follow-up.
+
+Cache invalidation across all three keys is covered by integration tests (see Testing) — writing them earlier caught a real bug: the member repository was missing `.Include(m => m.Gym)`, so `GymName` silently returned a fallback value instead of the actual gym.
 
 ---
 
@@ -154,9 +161,10 @@ Cache invalidation is covered by integration tests (see Testing) — writing the
 | GET | `/api/members` | Any staff | Paginated, searchable, filterable by gym |
 | POST | `/api/members` | Any staff | |
 | PUT/DELETE | `/api/members/{id}` | Admin | |
-| GET | `/api/plans`, `/api/plans/gym/{gymId}` | Any staff | Cached (see Caching) |
-| POST/PUT | `/api/plans` | Admin, Manager | Invalidates plan cache |
-| DELETE | `/api/plans/{id}` | Admin | Soft delete, invalidates plan cache |
+| GET | `/api/plans`, `/api/plans/{id}` | Any staff | Cached — `IMemoryCache` (see Caching) |
+| GET | `/api/plans/gym/{gymId}` | Any staff | Cached — Redis (see Caching) |
+| POST/PUT | `/api/plans` | Admin, Manager | Invalidates cache across both backends |
+| DELETE | `/api/plans/{id}` | Admin | Soft delete, invalidates cache across both backends |
 | GET | `/api/subscriptions`, `/{id}` | Any staff | Filter by status, member, plan, date range |
 | POST | `/api/subscriptions` | Admin, Manager, Receptionist | Creates subscription + payment atomically |
 | POST | `/api/subscriptions/{id}/cancel` \| `freeze` \| `unfreeze` | Admin, Manager | State transitions |
@@ -198,7 +206,7 @@ GET /api/members?PageNumber=1&PageSize=10&SearchTerm=ahmed&GymId=3
 
 Integration tests run through `WebApplicationFactory` against the real middleware pipeline, including a test verifying rate-limited requests are rejected with `429` before reaching the controller. A stubbed authentication handler replaces JWT in the test host, so protected endpoints can be exercised without a real login flow, against an isolated in-memory database per test run.
 
-**Current coverage:** Member CRUD (controller unit tests + integration tests), rate limiting, and cache-aside invalidation for membership plans (create/update/delete correctly bust the cache, and repeated reads return consistent data). Auth flows, Subscriptions, and Attendance — including the concurrency fixes above — aren't covered by automated tests yet; verified manually. Next priority: concurrent-request tests against the capacity check and refresh-token rotation, since those are exactly the bug class a single-threaded test won't catch.
+**Current coverage:** Member CRUD (controller unit tests + integration tests), rate limiting, and cache-aside invalidation for membership plans (create/update/delete correctly bust the cache across both `IMemoryCache` and Redis, and repeated reads return consistent data). Auth flows, Subscriptions, and Attendance — including the concurrency fixes above — aren't covered by automated tests yet; verified manually. Next priority: concurrent-request tests against the capacity check and refresh-token rotation, since those are exactly the bug class a single-threaded test won't catch.
 
 ---
 
