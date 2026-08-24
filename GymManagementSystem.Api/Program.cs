@@ -77,6 +77,12 @@ namespace GymManagementSystem.Api
                 });
             });
 
+            // Add Redis Cache for distributed caching
+
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = "localhost:6379";
+            });
 
             //  Rate Limiting Service
             builder.Services.AddRateLimiter(options =>

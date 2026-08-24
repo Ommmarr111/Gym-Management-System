@@ -15,7 +15,6 @@ namespace GymManagementSystem.Api.Controllers
         {
             _service = service;
         }
-
         [HttpPost]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> CreatePlan([FromBody] CreateMembershipPlanDto request)
