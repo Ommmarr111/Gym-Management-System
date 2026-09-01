@@ -4,7 +4,6 @@ A REST API for managing gym operations — members, subscriptions, payments, att
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![EF Core](https://img.shields.io/badge/EF%20Core-9.0-512BD4)](https://learn.microsoft.com/en-us/ef/core/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 
@@ -146,6 +145,15 @@ Manual measurement on the gym-scoped endpoint: cold reads (DB hit) consistently 
 - The Redis path doesn't yet guard against a cache stampede (concurrent requests all missing the cache at once and hitting the DB together). `IMemoryCache.GetOrCreateAsync` handles this per-key locking for free; `IDistributedCache` has no built-in equivalent, so this needs a distributed lock (e.g. Redis `SETNX` or RedLock) as a follow-up.
 
 Cache invalidation across all three keys is covered by integration tests (see Testing) — writing them earlier caught a real bug: the member repository was missing `.Include(m => m.Gym)`, so `GymName` silently returned a fallback value instead of the actual gym.
+
+---
+## Background Jobs
+
+A Hangfire recurring job (`expire-overdue-subscriptions`) runs hourly, checking for subscriptions still marked `Active` past their `EndDate` and flipping them to `Expired`.
+
+The job is idempotent by construction: once a subscription is expired, it no longer matches the `Status == Active` filter the job queries against, so re-running it — on overlap, a server restart, or a manual trigger from the Hangfire dashboard — is always a safe no-op for records already processed. No separate tracking flag is needed to prevent double-processing.
+
+Hangfire's dashboard (`/hangfire`) exposes the job's schedule and run history, and supports manually triggering a run for testing without waiting for the next hourly execution.
 
 ---
 
