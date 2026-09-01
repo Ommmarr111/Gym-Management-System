@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using GymManagementSystem.Api.Middleware;
+using GymManagementSystem.Application.BackgroundJobs;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Mappings;
 using GymManagementSystem.Application.Services;
@@ -9,6 +10,7 @@ using GymManagementSystem.Domain.Entities;
 using GymManagementSystem.Infrastructure.Persistence;
 using GymManagementSystem.Infrastructure.Repositories;
 using GymManagementSystem.Infrastructure.Seeding;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -157,6 +159,8 @@ namespace GymManagementSystem.Api
             builder.Services.AddScoped<IAttendanceService, AttendanceService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
 
+            // Add the subscription expiry job to the DI container
+            builder.Services.AddScoped<ISubscriptionExpiryJob, SubscriptionExpiryJob>();
 
             // Add Memory Cache for caching frequently accessed data
             builder.Services.AddMemoryCache();
@@ -171,6 +175,15 @@ namespace GymManagementSystem.Api
             // VALIDATION
             builder.Services.AddFluentValidationAutoValidation();
             builder.Services.AddValidatorsFromAssemblyContaining<CreateMemberDtoValidator>();
+
+            // HANGFIRE CONFIGURATION
+            builder.Services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            // Add the Hangfire server to process jobs
+            builder.Services.AddHangfireServer();
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -216,6 +229,11 @@ namespace GymManagementSystem.Api
             }
 
             app.MapControllers();
+
+            app.UseHangfireDashboard("/hangfire");
+            RecurringJob.AddOrUpdate<ISubscriptionExpiryJob>("expire-overdue-subscriptions",
+                job => job.ExpireOverdueSubscriptionsAsync(),
+                Cron.Hourly);
 
             app.Run();
         }

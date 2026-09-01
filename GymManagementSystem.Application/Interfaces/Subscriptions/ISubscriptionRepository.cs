@@ -15,5 +15,7 @@ namespace GymManagementSystem.Application.Interfaces
 
         IQueryable<Subscription> GetAllAsQueryable();
 
+        Task<List<Subscription>> GetOverdueActiveSubscriptionsAsync(DateTime asOf);
+
     }
 }

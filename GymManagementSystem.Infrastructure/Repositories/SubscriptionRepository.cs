@@ -74,5 +74,12 @@ namespace GymManagementSystem.Infrastructure.Repositories
         {
             return _context.Subscriptions.AsQueryable();
         }
+
+        public async Task<List<Subscription>> GetOverdueActiveSubscriptionsAsync(DateTime asOf)
+        {
+            return await _context.Subscriptions
+                .Where(s => s.Status == "Active" && s.EndDate < asOf)
+                .ToListAsync();
+        }
     }
 }
