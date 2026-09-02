@@ -1,27 +1,50 @@
 # Gym Management System
 
-A REST API for managing gym operations — members, subscriptions, payments, attendance — built with ASP.NET Core 9 and EF Core, following Clean Architecture with Repository + Unit of Work.
+A REST API for managing gym operations — members, subscriptions, payments, attendance — built with **ASP.NET Core 9** and **EF Core**, following Clean Architecture with the Repository + Unit of Work pattern.
 
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![EF Core](https://img.shields.io/badge/EF%20Core-9.0-512BD4)](https://learn.microsoft.com/en-us/ef/core/)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/en-us/sql-server)
+
+---
+
+## Table of contents
+
+- [What this is](#what-this-is)
+- [Tech stack](#tech-stack)
+- [Architecture](#architecture)
+- [Auth](#auth)
+- [Entity relationships](#entity-relationships)
+- [Concurrency handling](#concurrency-handling)
+- [Caching](#caching)
+- [Background jobs](#background-jobs)
+- [API surface](#api-surface)
+- [Business rules](#business-rules)
+- [Testing](#testing)
+- [Running it locally](#running-it-locally)
+- [Author](#author)
 
 ---
 
 ## What this is
 
-A gym has locations, members, membership plans, and subscriptions that move through a lifecycle (`Active → Frozen → Expired/Cancelled`). Members check in, which is validated against an active subscription at the correct gym. Collection endpoints (members, subscriptions, attendance) compose filters/search/pagination as `IQueryable`, so EF Core translates them to SQL instead of loading full tables into memory.
+A gym has locations, members, membership plans, and subscriptions that move through a lifecycle (`Active → Frozen → Expired/Cancelled`). Members check in, and each check-in is validated against an active subscription at the correct gym. Collection endpoints (members, subscriptions, attendance) compose filters, search, and pagination as `IQueryable`, so EF Core translates them to SQL instead of loading full tables into memory.
 
-This is an internal operations API for gym staff — not a customer-facing app. There's no member login; members are records that staff create and manage.
+> This is an **internal operations API for gym staff** — not a customer-facing app. There's no member login; members are records that staff create and manage.
 
 ---
 
 ## Tech stack
 
-**API:** ASP.NET Core 9 · EF Core · SQL Server · ASP.NET Core Identity + JWT
-**Validation/Mapping:** FluentValidation · AutoMapper
-**Caching:** `IMemoryCache` (most endpoints) and `IDistributedCache`/Redis (gym-scoped plan lookups) — mixed as part of an in-progress migration, see Caching section
-**Testing:** xUnit · `WebApplicationFactory`
-**Protection:** ASP.NET Core rate limiting on `/api/auth/login`
+| Layer | Technology |
+|---|---|
+| API | ASP.NET Core 9, EF Core, SQL Server |
+| Auth | ASP.NET Core Identity + JWT |
+| Validation / Mapping | FluentValidation, AutoMapper |
+| Caching | `IMemoryCache` (most endpoints) and `IDistributedCache`/Redis (gym-scoped plan lookups) — mixed as part of an in-progress migration, see [Caching](#caching) |
+| Background jobs | Hangfire |
+| Testing | xUnit, `WebApplicationFactory` |
+| Protection | ASP.NET Core rate limiting on `/api/auth/login` |
 
 ---
 
@@ -44,50 +67,28 @@ graph TD
     style Infra fill:#E1F5EE,stroke:#0F6E56,color:#085041
 ```
 
-- **Api** — controllers, global exception handling middleware
-- **Application** — DTOs, services, FluentValidation validators, repository/UoW interfaces, AutoMapper profiles
-- **Domain** — entities: `Gym`, `Member`, `MembershipPlan`, `Subscription`, `Payment`, `Attendance`, `RefreshToken`
-- **Infrastructure** — EF Core `ApplicationDbContext`, repository implementations, migrations, Identity persistence
+| Layer | Responsibility |
+|---|---|
+| **Api** | Controllers, global exception handling middleware |
+| **Application** | DTOs, services, FluentValidation validators, repository/UoW interfaces, AutoMapper profiles |
+| **Domain** | Entities: `Gym`, `Member`, `MembershipPlan`, `Subscription`, `Payment`, `Attendance`, `RefreshToken` |
+| **Infrastructure** | EF Core `ApplicationDbContext`, repository implementations, migrations, Identity persistence |
 
 ---
 
-### Auth
+## Auth
 
-Login issues a short-lived **JWT access token** and a **refresh token**. `POST /api/auth/refresh` exchanges a valid refresh token for a new pair.
+Login issues a short-lived **JWT access token** and a **refresh token**. `POST /api/auth/refresh` exchanges a valid refresh token for a new pair. Refresh tokens are generated using `RandomNumberGenerator` and stored only as **SHA-256 hashes** — the raw token is never persisted.
 
-Refresh tokens are generated using `RandomNumberGenerator` and stored only as **SHA-256 hashes** — the raw token is never persisted.
+**Rotation is single-use and race-safe.** Refreshing performs an atomic conditional update (`UPDATE ... WHERE Id = @id AND RevokedOn IS NULL AND ExpiresOn > <current UTC time>`), so two concurrent requests can't both successfully reuse the same token — only one wins the update. Revocation is committed independently of issuing the new pair: if issuance fails after the old token is revoked, that revocation is **not rolled back**, so a failed issuance can never re-validate an already-revoked token.
 
-#### Rotation & Concurrency Safety
+**Reuse is treated as theft.** If a refresh token that was already revoked (and not simply expired) is presented again, all active refresh tokens for that user are revoked, forcing re-authentication. This is user-wide, not session- or device-specific — reuse detected on one compromised session revokes every session, including unaffected devices — since reuse detection can't currently tell which session was compromised, and a rare transient failure during issuance can leave a revoked-but-not-replaced token. Both trade-offs favor security over convenience.
 
-Each refresh token is **single-use**. Refreshing performs an atomic conditional update:
+**Roles are seeded and claim-based:** `Admin` can do everything plus structural/destructive actions (delete a gym or plan, register new staff); `Manager` handles revenue-affecting actions (create plans, cancel/freeze/unfreeze subscriptions); `Receptionist` covers front-desk actions (enroll members, sell subscriptions, check members in). Reads are open to any authenticated staff role, and `/api/auth/login` is rate-limited to blunt credential-stuffing attempts.
 
-`UPDATE ... WHERE Id = @id AND RevokedOn IS NULL AND ExpiresOn > <current UTC time>`
+---
 
-This prevents two concurrent requests from both successfully reusing the same token — only one can win the conditional update.
-
-Token revocation is committed independently of new token issuance. If issuing the new token pair fails after the old token has been revoked, that revocation is **not rolled back** — a failed issuance never re-validates an already-revoked token.
-
-#### Reuse Detection
-
-If a refresh token that was already revoked (and not simply expired) is presented again, the system treats it as a potential token theft: **all active refresh tokens for that user are revoked**, forcing re-authentication.
-
-**Note:** Revocation on reuse detection is user-wide, not session- or device-specific. If reuse is detected from one compromised session, all of that user's active sessions — including unaffected devices — are revoked.
-
-#### Design Trade-offs
-
-- **No session/family grouping:** Reuse detection cannot currently distinguish which session was compromised, so it revokes broadly rather than narrowly. This favors security over convenience.
-- **Independent revocation:** A rare transient failure during token issuance (e.g. user lookup fails) can leave a revoked-but-not-replaced token, forcing the legitimate user to log in again. This is accepted to guarantee that revocation can never be silently undone.
-Roles (`Admin`, `Manager`, `Receptionist`) are seeded and included as JWT claims. Endpoints are role-gated by what the action actually affects, not uniformly:
-
-| Role | Can do |
-|---|---|
-| `Admin` | Everything, plus structural/destructive actions: delete a gym or plan, register new staff |
-| `Manager` | Revenue-affecting actions: create plans, cancel/freeze/unfreeze subscriptions |
-| `Receptionist` | Front-desk actions: enroll members, sell subscriptions, check members in |
-
-Reads are open to any authenticated staff role. `/api/auth/login` is rate-limited to blunt credential-stuffing attempts.
-
-### Entity relationships
+## Entity relationships
 
 ```mermaid
 erDiagram
@@ -130,19 +131,25 @@ erDiagram
 
 ## Concurrency handling
 
-The part of this project that isn't standard CRUD: three write paths had race conditions under concurrent requests, and each needed a different fix because they're different problems wearing the same "add a transaction" disguise.
+The part of this project that isn't standard CRUD: three write paths had race conditions under concurrent requests, and each needed a different fix — because they're different problems wearing the same "add a transaction" disguise.
 
-**Subscription creation writes to two tables (`Subscription`, then `Payment`) and both need to succeed or neither should.** This is wrapped in an explicit `IDbContextTransaction`, committed only after both inserts succeed, rolled back on any failure — so a payment-insert failure can't leave an orphaned active subscription with no payment record.
+**1. Subscription creation writes to two tables (`Subscription`, then `Payment`), and both need to succeed or neither should.**
+This is wrapped in an explicit `IDbContextTransaction`, committed only after both inserts succeed and rolled back on any failure — so a payment-insert failure can't leave an orphaned active subscription with no payment record.
 
-**Refresh token rotation had a read-then-write gap.** The old code checked `IsActive` in application code, then separately wrote `RevokedOn`. Two concurrent refresh requests using the same token could both read "active" before either wrote the revocation, producing two valid token pairs from one single-use token. Fixed with a single atomic conditional update instead of a transaction:
+**2. Refresh token rotation had a read-then-write gap.**
+The old code checked `IsActive` in application code, then separately wrote `RevokedOn`. Two concurrent refresh requests using the same token could both read "active" before either wrote the revocation, producing two valid token pairs from one single-use token. Fixed with a single atomic conditional update instead of a transaction:
+
 ```csharp
 await _context.RefreshTokens
     .Where(rt => rt.Id == id && rt.RevokedOn == null && rt.ExpiresOn > DateTime.UtcNow)
     .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedOn, DateTime.UtcNow));
 ```
+
 The database enforces the check-and-write as one indivisible statement — a losing concurrent request updates zero rows and is rejected, rather than the race being possible at all.
 
-**Gym capacity enforcement is a read (member count) followed by a write (insert) with nothing linking them.** Under the database's default isolation level, two concurrent registrations can both read the count as under capacity before either commits — both pass the check, capacity gets exceeded. This needed `Serializable` isolation specifically (not just any transaction — default `Read Committed` doesn't block this), so the database itself detects the conflict and rejects one of the two competing transactions:
+**3. Gym capacity enforcement is a read (member count) followed by a write (insert) with nothing linking them.**
+Under the database's default isolation level, two concurrent registrations can both read the count as under capacity before either commits — both pass the check, and capacity gets exceeded. This needed `Serializable` isolation specifically (not just any transaction — the default `Read Committed` doesn't block this), so the database itself detects the conflict and rejects one of the two competing transactions:
+
 ```csharp
 await using var transaction = await _unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable);
 ```
@@ -160,16 +167,18 @@ Membership plan reads use a cache-aside pattern, currently split across two back
 
 Writes (create/update/delete) invalidate all three cache keys across both backends — the in-memory "all plans" and "single plan" keys, and the Redis-backed gym-scoped key — rather than relying on TTL expiry alone.
 
-Manual measurement on the gym-scoped endpoint: cold reads (DB hit) consistently over 100ms, dropping to single-digit ms on a cache hit.
+Manual measurement on the gym-scoped endpoint: cold reads (DB hit) consistently take over 100ms, dropping to single-digit ms on a cache hit.
 
-**Known gaps, left deliberate rather than hidden:**
-- The two `IMemoryCache` endpoints haven't been migrated to Redis yet — in a real multi-instance deployment they'd serve stale/inconsistent data across instances, unlike the Redis-backed endpoint.
+**Known gaps — left deliberate, not hidden:**
+
+- The two `IMemoryCache` endpoints haven't been migrated to Redis yet. In a real multi-instance deployment they'd serve stale/inconsistent data across instances, unlike the Redis-backed endpoint.
 - The Redis path doesn't yet guard against a cache stampede (concurrent requests all missing the cache at once and hitting the DB together). `IMemoryCache.GetOrCreateAsync` handles this per-key locking for free; `IDistributedCache` has no built-in equivalent, so this needs a distributed lock (e.g. Redis `SETNX` or RedLock) as a follow-up.
 
-Cache invalidation across all three keys is covered by integration tests (see Testing) — writing them earlier caught a real bug: the member repository was missing `.Include(m => m.Gym)`, so `GymName` silently returned a fallback value instead of the actual gym.
+Cache invalidation across all three keys is covered by integration tests (see [Testing](#testing)) — writing them earlier caught a real bug: the member repository was missing `.Include(m => m.Gym)`, so `GymName` silently returned a fallback value instead of the actual gym.
 
 ---
-## Background Jobs
+
+## Background jobs
 
 A Hangfire recurring job (`expire-overdue-subscriptions`) runs hourly, checking for subscriptions still marked `Active` past their `EndDate` and flipping them to `Expired`.
 
@@ -191,8 +200,8 @@ Hangfire's dashboard (`/hangfire`) exposes the job's schedule and run history, a
 | GET | `/api/members` | Any staff | Paginated, searchable, filterable by gym |
 | POST | `/api/members` | Any staff | |
 | PUT/DELETE | `/api/members/{id}` | Admin | |
-| GET | `/api/plans`, `/api/plans/{id}` | Any staff | Cached — `IMemoryCache` (see Caching) |
-| GET | `/api/plans/gym/{gymId}` | Any staff | Cached — Redis (see Caching) |
+| GET | `/api/plans`, `/api/plans/{id}` | Any staff | Cached — `IMemoryCache` (see [Caching](#caching)) |
+| GET | `/api/plans/gym/{gymId}` | Any staff | Cached — Redis (see [Caching](#caching)) |
 | POST/PUT | `/api/plans` | Admin, Manager | Invalidates cache across both backends |
 | DELETE | `/api/plans/{id}` | Admin | Soft delete, invalidates cache across both backends |
 | GET | `/api/subscriptions`, `/{id}` | Any staff | Filter by status, member, plan, date range |
@@ -226,8 +235,8 @@ GET /api/members?PageNumber=1&PageSize=10&SearchTerm=ahmed&GymId=3
 - Subscription transitions are guarded: only `Active` can freeze, only `Frozen` can unfreeze
 - Freeze duration capped at 1–90 days
 - A member can't hold two active subscriptions to the same plan
-- Gym capacity can't be exceeded — enforced under `Serializable` isolation, see above
-- Check-in rejected if the subscription is frozen/expired/cancelled, or belongs to a different gym
+- Gym capacity can't be exceeded — enforced under `Serializable` isolation, see [Concurrency handling](#concurrency-handling)
+- Check-in is rejected if the subscription is frozen/expired/cancelled, or belongs to a different gym
 - Member emails are unique, enforced by a DB index, not just application logic
 
 ---
@@ -236,11 +245,24 @@ GET /api/members?PageNumber=1&PageSize=10&SearchTerm=ahmed&GymId=3
 
 Integration tests run through `WebApplicationFactory` against the real middleware pipeline, including a test verifying rate-limited requests are rejected with `429` before reaching the controller. A stubbed authentication handler replaces JWT in the test host, so protected endpoints can be exercised without a real login flow, against an isolated in-memory database per test run.
 
-**Current coverage:** Member CRUD (controller unit tests + integration tests), rate limiting, and cache-aside invalidation for membership plans (create/update/delete correctly bust the cache across both `IMemoryCache` and Redis, and repeated reads return consistent data). Auth flows, Subscriptions, and Attendance — including the concurrency fixes above — aren't covered by automated tests yet; verified manually. Next priority: concurrent-request tests against the capacity check and refresh-token rotation, since those are exactly the bug class a single-threaded test won't catch.
+**Current coverage:**
+- Member CRUD (controller unit tests + integration tests)
+- Rate limiting
+- Cache-aside invalidation for membership plans (create/update/delete correctly bust the cache across both `IMemoryCache` and Redis, and repeated reads return consistent data)
+
+**Not yet covered by automated tests** (verified manually): Auth flows, Subscriptions, and Attendance — including the concurrency fixes above.
+
+**Next priority:** concurrent-request tests against the capacity check and refresh-token rotation, since those are exactly the bug class a single-threaded test won't catch.
 
 ---
 
 ## Running it locally
+
+**Prerequisites:**
+- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- A SQL Server instance (local or containerized)
+
+**Steps:**
 
 ```bash
 git clone https://github.com/Ommmarr111/Gym-Management-System.git
@@ -249,12 +271,17 @@ dotnet ef database update --project GymManagementSystem.Infrastructure --startup
 dotnet run --project GymManagementSystem.Api
 ```
 
-Set `ConnectionStrings:DefaultConnection` and `Jwt:Key`/`Jwt:Issuer`/`Jwt:Audience` via user secrets or environment variables, not committed config.
+Set `ConnectionStrings:DefaultConnection` and `Jwt:Key` / `Jwt:Issuer` / `Jwt:Audience` via user secrets or environment variables — not committed config.
 
-Swagger: `https://localhost:<port>/swagger`
+Once running, open Swagger at:
+
+```
+https://localhost:<port>/swagger
+```
 
 ---
 
 ## Author
 
-**Omar Ahmed** — [GitHub](https://github.com/Ommmarr111) · [LinkedIn](https://linkedin.com/in/Ommmarr111)
+**Omar Ahmed**
+[GitHub](https://github.com/Ommmarr111) · [LinkedIn](https://linkedin.com/in/Ommmarr111)
