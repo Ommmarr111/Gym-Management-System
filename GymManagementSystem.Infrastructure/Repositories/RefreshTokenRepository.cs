@@ -44,5 +44,13 @@ namespace GymManagementSystem.Infrastructure.Repositories
                            && rt.ExpiresOn > DateTime.UtcNow)
                 .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedOn, DateTime.UtcNow));
         }
+
+        public async Task RevokeAllForUserAsync(string userId)
+        {
+            await _context.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedOn == null)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(t => t.RevokedOn, DateTime.UtcNow));
+        }
     }
 }

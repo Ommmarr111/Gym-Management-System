@@ -212,93 +212,70 @@ namespace GymManagementSystem.Application.Services
                 hash);
         }
 
-        public async Task<AuthResponseDto> RefreshTokenAsync(
-            string refreshToken)
+        public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
         {
-            // 1. Hash the raw refresh token
             var tokenHash = HashToken(refreshToken);
 
-            // 2. Find it in the database
-            var storedToken =
-                await _unitOfWork.RefreshTokens
-                    .GetByTokenHashAsync(tokenHash);
+            var storedToken = await _unitOfWork.RefreshTokens.GetByTokenHashAsync(tokenHash);
 
-            // 3. Token doesn't exist
             if (storedToken == null)
-                throw new UnauthorizedException(
-                    "Invalid refresh token");
+                throw new UnauthorizedException("Invalid refresh token");
 
-            // 4. Check if the token is expired or revoked
+            bool wasAlreadyRevoked = storedToken.RevokedOn != null;
+            bool isExpired = storedToken.ExpiresOn <= DateTime.UtcNow;
+
             var rowsAffected = await _unitOfWork.RefreshTokens.RevokeIfActiveAsync(storedToken.Id);
 
-            // 5. If no rows were affected, it means the token was either expired or already revoked
             if (rowsAffected == 0)
+            {
+                if (wasAlreadyRevoked && !isExpired)
+                {
+                    await _unitOfWork.RefreshTokens.RevokeAllForUserAsync(storedToken.UserId);
+                    throw new UnauthorizedException("Token reuse detected. All sessions have been revoked.");
+                }
                 throw new UnauthorizedException("Refresh token is expired or revoked");
+            }
 
-            // 6. Find the user
-            var user =
-                await _userManager.FindByIdAsync(
-                    storedToken.UserId);
-
-            if (user == null)
-                throw new UnauthorizedException(
-                    "User associated with refresh token not found");
-
-            // 7. Generate a NEW access token
-            var roles = await _userManager.GetRolesAsync(user);
-
-            var newAccessToken =
-                GenerateAccessToken(user, roles);
-
-            // 8. Generate a NEW refresh token
-            var newRawRefreshToken =
-                GenerateRandomTokenString();
-
-            // 9. Hash the NEW refresh token
-            var newRefreshTokenHash =
-                HashToken(newRawRefreshToken);
-
-            // 10. Create the NEW refresh-token record
-            var newRefreshToken = new RefreshToken
+            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                UserId = user.Id,
+                var user = await _userManager.FindByIdAsync(storedToken.UserId);
+                if (user == null)
+                    throw new UnauthorizedException("User associated with refresh token not found");
 
-                TokenHash = newRefreshTokenHash,
+                var roles = await _userManager.GetRolesAsync(user);
+                var newAccessToken = GenerateAccessToken(user, roles);
 
-                CreatedOn = DateTime.UtcNow,
+                var newRawRefreshToken = GenerateRandomTokenString();
+                var newRefreshToken = new RefreshToken
+                {
+                    UserId = user.Id,
+                    TokenHash = HashToken(newRawRefreshToken),
+                    CreatedOn = DateTime.UtcNow,
+                    ExpiresOn = DateTime.UtcNow.AddDays(7)
+                };
 
-                ExpiresOn = DateTime.UtcNow.AddDays(7)
-            };
+                await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken);
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
 
-            // 11. Save the new refresh token
-            await _unitOfWork.RefreshTokens
-                .AddAsync(newRefreshToken);
-
-            // 12. Save BOTH changes:
-            //     - old token revoked
-            //     - new token created
-            await _unitOfWork.SaveChangesAsync();
-
-            // 13. Return the new pair
-            return new AuthResponseDto
+                return new AuthResponseDto
+                {
+                    AccessToken = newAccessToken,
+                    RefreshToken = newRawRefreshToken,
+                    UserId = user.Id,
+                    Email = user.Email!,
+                    FullName = user.FullName,
+                    Roles = roles.ToList(),
+                    Expiration = DateTime.UtcNow.AddMinutes(
+                        double.Parse(_configuration["Jwt:DurationInMinutes"]!))
+                };
+            }
+            catch
             {
-                AccessToken = newAccessToken,
-
-                RefreshToken = newRawRefreshToken,
-
-                UserId = user.Id,
-
-                Email = user.Email!,
-
-                FullName = user.FullName,
-
-                Roles = roles.ToList(),
-
-                Expiration = DateTime.UtcNow.AddMinutes(
-                    double.Parse(
-                        _configuration[
-                            "Jwt:DurationInMinutes"]!))
-            };
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }

@@ -9,5 +9,7 @@
         Task UpdateAsync(RefreshToken refreshToken);
 
         Task<int> RevokeIfActiveAsync(Guid id);
+
+        Task RevokeAllForUserAsync(string userId);
     }
 }
