@@ -51,10 +51,32 @@ graph TD
 
 ---
 
-## Auth
+### Auth
 
-Login issues a short-lived JWT access token plus a refresh token; `POST /api/auth/refresh` exchanges a valid refresh token for a new pair. The refresh token is generated with `RandomNumberGenerator`, hashed (SHA-256) before storage, and single-use — refreshing revokes the old token and issues a new pair.
+Login issues a short-lived **JWT access token** and a **refresh token**. `POST /api/auth/refresh` exchanges a valid refresh token for a new pair.
 
+Refresh tokens are generated using `RandomNumberGenerator` and stored only as **SHA-256 hashes** — the raw token is never persisted.
+
+#### Rotation & Concurrency Safety
+
+Each refresh token is **single-use**. Refreshing performs an atomic conditional update:
+
+`UPDATE ... WHERE Id = @id AND RevokedOn IS NULL AND ExpiresOn > <current UTC time>`
+
+This prevents two concurrent requests from both successfully reusing the same token — only one can win the conditional update.
+
+Token revocation is committed independently of new token issuance. If issuing the new token pair fails after the old token has been revoked, that revocation is **not rolled back** — a failed issuance never re-validates an already-revoked token.
+
+#### Reuse Detection
+
+If a refresh token that was already revoked (and not simply expired) is presented again, the system treats it as a potential token theft: **all active refresh tokens for that user are revoked**, forcing re-authentication.
+
+**Note:** Revocation on reuse detection is user-wide, not session- or device-specific. If reuse is detected from one compromised session, all of that user's active sessions — including unaffected devices — are revoked.
+
+#### Design Trade-offs
+
+- **No session/family grouping:** Reuse detection cannot currently distinguish which session was compromised, so it revokes broadly rather than narrowly. This favors security over convenience.
+- **Independent revocation:** A rare transient failure during token issuance (e.g. user lookup fails) can leave a revoked-but-not-replaced token, forcing the legitimate user to log in again. This is accepted to guarantee that revocation can never be silently undone.
 Roles (`Admin`, `Manager`, `Receptionist`) are seeded and included as JWT claims. Endpoints are role-gated by what the action actually affects, not uniformly:
 
 | Role | Can do |
