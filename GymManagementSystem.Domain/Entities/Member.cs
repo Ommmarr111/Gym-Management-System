@@ -11,6 +11,9 @@
         public DateTime DateOfBirth { get; set; }
         public DateTime JoinDate { get; set; } = DateTime.UtcNow;
 
+
+        public DateTime? WelcomeEmailSentAt { get; set; }
+
         public int GymId { get; set; }
         public Gym Gym { get; set; } = null!;
     }

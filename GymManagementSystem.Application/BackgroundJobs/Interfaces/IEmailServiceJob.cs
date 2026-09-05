@@ -2,6 +2,6 @@
 {
     public interface IEmailServiceJob
     {
-        Task SendWelcomeEmailAsync(string email, string name);
+        Task SendWelcomeEmailAsync(int memberId);
     }
 }
