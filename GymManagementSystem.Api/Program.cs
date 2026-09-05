@@ -2,6 +2,8 @@
 using FluentValidation.AspNetCore;
 using GymManagementSystem.Api.Middleware;
 using GymManagementSystem.Application.BackgroundJobs;
+using GymManagementSystem.Application.BackgroundJobs.Interfaces;
+using GymManagementSystem.Application.BackgroundJobs.Jobs;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Application.Mappings;
 using GymManagementSystem.Application.Services;
@@ -148,7 +150,7 @@ namespace GymManagementSystem.Api
                 });
             });
 
-
+            // UNIT OF WORK CONFIGURATION
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Add services to the container.
@@ -184,6 +186,10 @@ namespace GymManagementSystem.Api
             .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
             // Add the Hangfire server to process jobs
             builder.Services.AddHangfireServer();
+
+
+            // EMAIL SERVICE CONFIGURATION
+            builder.Services.AddScoped<IEmailServiceJob, EmailServiceJob>();
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

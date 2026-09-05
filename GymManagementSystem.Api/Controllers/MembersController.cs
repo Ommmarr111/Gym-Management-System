@@ -1,6 +1,8 @@
-﻿using GymManagementSystem.Application.DTOs;
+﻿using GymManagementSystem.Application.BackgroundJobs.Interfaces;
+using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Interfaces;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,7 +40,8 @@ namespace GymManagementSystem.Api.Controllers
         public async Task<IActionResult> Create([FromBody] CreateMemberDto dto)
         {
             var createdMember = await _service.CreateMemberAsync(dto);
-
+            // Enqueue a background job to send a welcome email to the newly created member
+            BackgroundJob.Enqueue<IEmailServiceJob>(x => x.SendWelcomeEmailAsync(createdMember.Email, createdMember.FirstName));
             return CreatedAtAction(nameof(GetById), new { id = createdMember.Id }, createdMember);
         }
 

@@ -236,46 +236,36 @@ namespace GymManagementSystem.Application.Services
                 throw new UnauthorizedException("Refresh token is expired or revoked");
             }
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            var user = await _userManager.FindByIdAsync(storedToken.UserId);
+            if (user == null)
+                throw new UnauthorizedException("User associated with refresh token not found");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var newAccessToken = GenerateAccessToken(user, roles);
+
+            var newRawRefreshToken = GenerateRandomTokenString();
+            var newRefreshToken = new RefreshToken
             {
-                var user = await _userManager.FindByIdAsync(storedToken.UserId);
-                if (user == null)
-                    throw new UnauthorizedException("User associated with refresh token not found");
+                UserId = user.Id,
+                TokenHash = HashToken(newRawRefreshToken),
+                CreatedOn = DateTime.UtcNow,
+                ExpiresOn = DateTime.UtcNow.AddDays(7)
+            };
 
-                var roles = await _userManager.GetRolesAsync(user);
-                var newAccessToken = GenerateAccessToken(user, roles);
+            await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken);
+            await _unitOfWork.SaveChangesAsync();
 
-                var newRawRefreshToken = GenerateRandomTokenString();
-                var newRefreshToken = new RefreshToken
-                {
-                    UserId = user.Id,
-                    TokenHash = HashToken(newRawRefreshToken),
-                    CreatedOn = DateTime.UtcNow,
-                    ExpiresOn = DateTime.UtcNow.AddDays(7)
-                };
-
-                await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken);
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return new AuthResponseDto
-                {
-                    AccessToken = newAccessToken,
-                    RefreshToken = newRawRefreshToken,
-                    UserId = user.Id,
-                    Email = user.Email!,
-                    FullName = user.FullName,
-                    Roles = roles.ToList(),
-                    Expiration = DateTime.UtcNow.AddMinutes(
-                        double.Parse(_configuration["Jwt:DurationInMinutes"]!))
-                };
-            }
-            catch
+            return new AuthResponseDto
             {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                AccessToken = newAccessToken,
+                RefreshToken = newRawRefreshToken,
+                UserId = user.Id,
+                Email = user.Email!,
+                FullName = user.FullName,
+                Roles = roles.ToList(),
+                Expiration = DateTime.UtcNow.AddMinutes(
+                    double.Parse(_configuration["Jwt:DurationInMinutes"]!))
+            };
         }
     }
 }
