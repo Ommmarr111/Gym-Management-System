@@ -5,6 +5,7 @@ using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace GymManagementSystem.Application.Services
 {
@@ -12,11 +13,13 @@ namespace GymManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<SubscriptionService> _logger;
 
-        public SubscriptionService(IUnitOfWork unitOfWork, IMapper mapper)
+        public SubscriptionService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<SubscriptionService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<SubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto dto)
@@ -32,8 +35,12 @@ namespace GymManagementSystem.Application.Services
             var activeSubscription = await _unitOfWork.Subscriptions
                 .GetActiveSubscriptionAsync(dto.MemberId, dto.MembershipPlanId);
             if (activeSubscription != null)
+            {
+                _logger.LogWarning("Rejected duplicate subscription attempt — member {MemberId} already has an active subscription for plan {PlanId}",
+                        dto.MemberId, dto.MembershipPlanId);
                 throw new BusinessRuleException(
                     $"Member with id = {dto.MemberId} already has an active subscription for this plan");
+            }
 
             var startDate = DateTime.UtcNow;
             var endDate = startDate.AddDays(plan.DurationInDays);
@@ -70,9 +77,11 @@ namespace GymManagementSystem.Application.Services
 
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                _logger.LogError(ex, "Subscription creation transaction rolled back for member {MemberId}, plan {PlanId}",
+                dto.MemberId, dto.MembershipPlanId);
                 throw;
             }
 
@@ -169,6 +178,9 @@ namespace GymManagementSystem.Application.Services
             await _unitOfWork.Subscriptions.UpdateAsync(sub);
             await _unitOfWork.SaveChangesAsync();
 
+            _logger.LogInformation("Subscription {SubscriptionId} cancelled", subscriptionId);
+
+
             return _mapper.Map<SubscriptionDto>(sub);
         }
 
@@ -190,9 +202,13 @@ namespace GymManagementSystem.Application.Services
             subscription.FrozenDurationDays = dto.DurationDays;
             subscription.EndDate = subscription.EndDate.AddDays(dto.DurationDays);
 
+
+
             await _unitOfWork.Subscriptions.UpdateAsync(subscription);
             await _unitOfWork.SaveChangesAsync();
 
+            _logger.LogInformation("Subscription {SubscriptionId} frozen for {DurationDays} days, new end date {EndDate}",
+            subscriptionId, dto.DurationDays, subscription.EndDate);
             return _mapper.Map<SubscriptionDto>(subscription);
         }
 
@@ -212,6 +228,7 @@ namespace GymManagementSystem.Application.Services
 
             await _unitOfWork.Subscriptions.UpdateAsync(subscription);
             await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Subscription {SubscriptionId} unfrozen", subscriptionId);
 
             return _mapper.Map<SubscriptionDto>(subscription);
         }

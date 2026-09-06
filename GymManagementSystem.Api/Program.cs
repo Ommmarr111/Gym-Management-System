@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
@@ -28,7 +29,23 @@ namespace GymManagementSystem.Api
     {
         public static async Task Main(string[] args)
         {
+
+            Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithCorrelationId()
+            .WriteTo.Console(outputTemplate:
+               "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+            .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day,
+            outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
             var builder = WebApplication.CreateBuilder(args);
+
+            // Configure Serilog as the logging provider
+            builder.Host.UseSerilog();
+
 
             Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
 
@@ -200,6 +217,10 @@ namespace GymManagementSystem.Api
             });
             builder.Services.AddSwaggerGen();
             var app = builder.Build();
+
+
+            // Use Serilog request logging middleware to log HTTP requests and responses
+            app.UseSerilogRequestLogging();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())

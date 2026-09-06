@@ -4,6 +4,7 @@ using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -17,15 +18,19 @@ namespace GymManagementSystem.Application.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<AuthService> _logger;
+
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
             IConfiguration configuration,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _configuration = configuration;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
@@ -70,8 +75,11 @@ namespace GymManagementSystem.Application.Services
             var user = await _userManager.FindByEmailAsync(dto.Email);
 
             if (user == null)
+            {
+                _logger.LogWarning("Login failed — no account for email {Email}", dto.Email);
                 throw new UnauthorizedException(
                     "Invalid email or password");
+            }
 
             var isPasswordValid =
                 await _userManager.CheckPasswordAsync(
@@ -79,9 +87,11 @@ namespace GymManagementSystem.Application.Services
                     dto.Password);
 
             if (!isPasswordValid)
+            {
+                _logger.LogWarning("Login failed — incorrect password for user {UserId}", user.Id);
                 throw new UnauthorizedException(
                     "Invalid email or password");
-
+            }
             return await GenerateAuthTokensAsync(user);
         }
 
@@ -219,7 +229,10 @@ namespace GymManagementSystem.Application.Services
             var storedToken = await _unitOfWork.RefreshTokens.GetByTokenHashAsync(tokenHash);
 
             if (storedToken == null)
+            {
+                _logger.LogWarning("Refresh attempted with an unrecognized token hash");
                 throw new UnauthorizedException("Invalid refresh token");
+            }
 
             bool wasAlreadyRevoked = storedToken.RevokedOn != null;
             bool isExpired = storedToken.ExpiresOn <= DateTime.UtcNow;
@@ -230,9 +243,11 @@ namespace GymManagementSystem.Application.Services
             {
                 if (wasAlreadyRevoked && !isExpired)
                 {
+                    _logger.LogCritical("Refresh token reuse detected for user {UserId} — revoking all active sessions", storedToken.UserId);
                     await _unitOfWork.RefreshTokens.RevokeAllForUserAsync(storedToken.UserId);
                     throw new UnauthorizedException("Token reuse detected. All sessions have been revoked.");
                 }
+                _logger.LogWarning("Refresh attempt rejected — token expired or already revoked for user {UserId}", storedToken.UserId);
                 throw new UnauthorizedException("Refresh token is expired or revoked");
             }
 

@@ -5,6 +5,7 @@ using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using System.Data;
 
 namespace GymManagementSystem.Application.Services
@@ -13,11 +14,14 @@ namespace GymManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ILogger<MemberService> _logger;
 
-        public MemberService(IUnitOfWork unitOfWork, IMapper mapper)
+
+        public MemberService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<MemberService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<PagedResult<MemberDto>> GetAllMembersAsync(MemberRequestParams parameters)
@@ -104,16 +108,22 @@ namespace GymManagementSystem.Application.Services
                 var currentMemberCount = await _unitOfWork.Members.CountByGymIdAsync(dto.GymId);
 
                 if (currentMemberCount >= gym.Capacity)
+                {
+                    _logger.LogWarning("Gym {GymId} capacity check failed — registration rejected, current count {CurrentCount}, capacity {Capacity}",
+                        dto.GymId, currentMemberCount, gym.Capacity);
                     throw new BusinessRuleException($"Gym '{gym.Name}' is at full capacity ({gym.Capacity} members)");
+                }
 
                 createdMember = await _unitOfWork.Members.AddAsync(newMember);
                 await _unitOfWork.SaveChangesAsync();
 
                 await transaction.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                _logger.LogWarning(ex, "Member creation transaction rolled back for gym {GymId} — possible concurrent capacity conflict",
+                    dto.GymId);
                 throw;
             }
 

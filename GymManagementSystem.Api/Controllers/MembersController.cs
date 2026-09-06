@@ -41,7 +41,7 @@ namespace GymManagementSystem.Api.Controllers
         {
             var createdMember = await _service.CreateMemberAsync(dto);
             // Enqueue a background job to send a welcome email to the newly created member
-            BackgroundJob.Enqueue<IEmailServiceJob>(x => x.SendWelcomeEmailAsync(createdMember.Email, createdMember.FirstName));
+            BackgroundJob.Enqueue<IEmailServiceJob>(x => x.SendWelcomeEmailAsync(createdMember.Id));
             return CreatedAtAction(nameof(GetById), new { id = createdMember.Id }, createdMember);
         }
 
