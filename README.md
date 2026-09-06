@@ -18,6 +18,7 @@ A REST API for managing gym operations — members, subscriptions, payments, att
 - [Concurrency handling](#concurrency-handling)
 - [Caching](#caching)
 - [Background jobs](#background-jobs)
+- [Logging & observability](#logging--observability)
 - [API surface](#api-surface)
 - [Business rules](#business-rules)
 - [Testing](#testing)
@@ -43,6 +44,7 @@ A gym has locations, members, membership plans, and subscriptions that move thro
 | Validation / Mapping | FluentValidation, AutoMapper |
 | Caching | `IMemoryCache` (most endpoints) and `IDistributedCache`/Redis (gym-scoped plan lookups) — mixed as part of an in-progress migration, see [Caching](#caching) |
 | Background jobs | Hangfire — recurring subscription expiry, fire-and-forget welcome emails, see [Background jobs](#background-jobs) |
+| Logging | Serilog — structured logging, correlation IDs, console + rolling file sinks, see [Logging & observability](#logging--observability) |
 | Testing | xUnit, `WebApplicationFactory` |
 | Protection | ASP.NET Core rate limiting on `/api/auth/login` |
 
@@ -191,6 +193,22 @@ Two Hangfire jobs, each demonstrating a different scheduling model and a differe
 Hangfire's dashboard (`/hangfire`) exposes both jobs' schedules and run history, and supports manually triggering a run for testing without waiting for the next scheduled or enqueued execution.
 
 **Not yet covered by automated tests** — both verified manually via the dashboard's manual trigger (the expiry job against a subscription with a backdated `EndDate`; the email job by triggering it twice against the same member and confirming the second run is a no-op).
+
+---
+
+## Logging & observability
+
+Serilog replaces the default logging provider, writing structured logs to the console and to a daily rolling file (`Logs/log-.txt`), enriched with a **correlation ID** per HTTP request via `Enrich.WithCorrelationId()`. `UseSerilogRequestLogging()` logs every request's method, path, status code, and duration automatically, with no code written per endpoint.
+
+**Structured, not string-interpolated.** Every log call uses named placeholders (`_logger.LogWarning("Login failed — no account for email {Email}", dto.Email)`), not `$"..."` interpolation — the difference matters because a real log sink (Seq, Application Insights) can query on `Email` or `MemberId` as an actual structured field, not grep through free text.
+
+Logging is applied deliberately, not everywhere — routine CRUD reads and writes aren't logged, since that would just be noise. It's placed at points with real diagnostic or security value:
+
+- **Auth** — failed login attempts (distinguishing "no such account" from "wrong password" internally, while the client-facing error stays intentionally identical for both). Refresh token reuse is logged at `Critical`, not `Warning` — it's the one event in the system that represents an active security incident (a possibly-stolen token in use), not routine failure noise, and is the log level that would page someone if real alerting were wired up.
+- **Subscriptions** — rejected duplicate-subscription attempts, and transaction rollbacks on the two-table Subscription+Payment write, logged only after a save actually succeeds or fails, never before (a log claiming something happened before it's confirmed is worse than no log at all).
+- **Members** — capacity-check rejections, including the case where SQL Server itself aborts the `Serializable`-isolation transaction on a concurrent conflict, not just the application-level `if` check — genuinely the only place in the codebase where that distinction matters.
+
+**Known gap:** failed requests are currently logged twice — once by ASP.NET Core's own unhandled-exception logging, once by the custom `GlobalExceptionHandler`. Harmless for a single-instance dev setup, but doubles log volume for every error in a real deployment. Left as a known, understood duplication rather than fixed, since isolating and removing the redundant sink wasn't prioritized over the rest of the roadmap.
 
 ---
 
