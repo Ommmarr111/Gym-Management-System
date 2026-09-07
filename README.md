@@ -355,4 +355,4 @@ Hangfire dashboard: https://localhost:<port>/hangfire
 ## Author
 
 **Omar Ahmed**
-[GitHub](https://github.com/Ommmarr111) · [LinkedIn](https://linkedin.com/in/Ommmarr111)
+[GitHub](https://github.com/Ommmarr111) · [LinkedIn](https://linkedin.com/in/omarahmed111)
