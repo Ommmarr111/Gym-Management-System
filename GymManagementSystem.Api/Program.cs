@@ -14,9 +14,11 @@ using GymManagementSystem.Infrastructure.Repositories;
 using GymManagementSystem.Infrastructure.Seeding;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
@@ -97,6 +99,18 @@ namespace GymManagementSystem.Api
 
                 });
             });
+
+            // Health Checks Service 
+
+            builder.Services.AddHealthChecks()
+                .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!,
+                    name: "sql-server",
+                    tags: new[] { "ready" })
+                .AddRedis(builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379",
+                    name: "redis",
+                    failureStatus: HealthStatus.Degraded,
+                    tags: new[] { "ready" });
+
 
             // Add Redis Cache for distributed caching
 
@@ -257,7 +271,16 @@ namespace GymManagementSystem.Api
 
             app.MapControllers();
 
-            app.UseHangfireDashboard("/hangfire");
+
+            app.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = _ => false // liveness = just "is the process running", checks nothing
+            });
+
+            app.MapHealthChecks("/health/ready", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready") // readiness = actually checks SQL Server + Redis
+            }); app.UseHangfireDashboard("/hangfire");
             RecurringJob.AddOrUpdate<ISubscriptionExpiryJob>("expire-overdue-subscriptions",
                 job => job.ExpireOverdueSubscriptionsAsync(),
                 Cron.Hourly);
