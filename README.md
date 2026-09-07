@@ -13,14 +13,16 @@ A REST API for managing gym operations — members, subscriptions, payments, att
 - [What this is](#what-this-is)
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
-- [Auth](#auth)
 - [Entity relationships](#entity-relationships)
+- [Business rules](#business-rules)
+- [API surface](#api-surface)
+- [Auth](#auth)
 - [Concurrency handling](#concurrency-handling)
 - [Caching](#caching)
 - [Background jobs](#background-jobs)
 - [Logging & observability](#logging--observability)
-- [API surface](#api-surface)
-- [Business rules](#business-rules)
+- [API Versioning](#api-versioning)
+- [Health Checks](#health-checks)
 - [Testing](#testing)
 - [Running it locally](#running-it-locally)
 - [Author](#author)
@@ -76,17 +78,6 @@ graph TD
 | **Domain** | Entities: `Gym`, `Member`, `MembershipPlan`, `Subscription`, `Payment`, `Attendance`, `RefreshToken` |
 | **Infrastructure** | EF Core `ApplicationDbContext`, repository implementations, migrations, Identity persistence |
 
----
-
-## Auth
-
-Login issues a short-lived **JWT access token** and a **refresh token**. `POST /api/auth/refresh` exchanges a valid refresh token for a new pair. Refresh tokens are generated using `RandomNumberGenerator` and stored only as **SHA-256 hashes** — the raw token is never persisted.
-
-**Rotation is single-use and race-safe.** Refreshing performs an atomic conditional update (`UPDATE ... WHERE Id = @id AND RevokedOn IS NULL AND ExpiresOn > <current UTC time>`), so two concurrent requests can't both successfully reuse the same token — only one wins the update. Revocation is committed independently of issuing the new pair: if issuance fails after the old token is revoked, that revocation is **not rolled back**, so a failed issuance can never re-validate an already-revoked token.
-
-**Reuse is treated as theft.** If a refresh token that was already revoked (and not simply expired) is presented again, all active refresh tokens for that user are revoked, forcing re-authentication. This is user-wide, not session- or device-specific — reuse detected on one compromised session revokes every session, including unaffected devices — since reuse detection can't currently tell which session was compromised, and a rare transient failure during issuance can leave a revoked-but-not-replaced token. Both trade-offs favor security over convenience.
-
-**Roles are seeded and claim-based:** `Admin` can do everything plus structural/destructive actions (delete a gym or plan, register new staff); `Manager` handles revenue-affecting actions (create plans, cancel/freeze/unfreeze subscriptions); `Receptionist` covers front-desk actions (enroll members, sell subscriptions, check members in). Reads are open to any authenticated staff role, and `/api/auth/login` is rate-limited to blunt credential-stuffing attempts.
 
 ---
 
@@ -128,7 +119,75 @@ erDiagram
         string Status
         string TransactionReference
     }
+
+
 ```
+
+---
+
+## Business rules
+
+- Subscription transitions are guarded: only `Active` can freeze, only `Frozen` can unfreeze
+- Freeze duration capped at 1–90 days
+- A member can't hold two active subscriptions to the same plan
+- Gym capacity can't be exceeded — enforced under `Serializable` isolation, see [Concurrency handling](#concurrency-handling)
+- Check-in is rejected if the subscription is frozen/expired/cancelled, or belongs to a different gym
+- Member emails are unique, enforced by a DB index, not just application logic
+- Active subscriptions past their end date are expired automatically by the hourly background job, not on-demand when the record happens to be read (see [Background jobs](#background-jobs))
+
+---
+
+## API surface
+
+| Method | Endpoint | Auth | Notes |
+|---|---|---|---|
+| POST | `/api/auth/login` | — | Rate-limited |
+| POST | `/api/auth/register` | Admin | |
+| POST | `/api/auth/refresh` | — | Rotates refresh token |
+| GET | `/api/gyms`, `/api/gyms/{id}` | Any staff | |
+| POST/PUT/DELETE | `/api/gyms` | Admin | Soft delete |
+| GET | `/api/members` | Any staff | Paginated, searchable, filterable by gym |
+| POST | `/api/members` | Any staff | Enqueues a welcome email in the background (see [Background jobs](#background-jobs)) |
+| PUT/DELETE | `/api/members/{id}` | Admin | |
+| GET | `/api/plans`, `/api/plans/{id}` | Any staff | Cached — `IMemoryCache` (see [Caching](#caching)) |
+| GET | `/api/plans/gym/{gymId}` | Any staff | Cached — Redis (see [Caching](#caching)) |
+| POST/PUT | `/api/plans` | Admin, Manager | Invalidates cache across both backends |
+| DELETE | `/api/plans/{id}` | Admin | Soft delete, invalidates cache across both backends |
+| GET | `/api/subscriptions`, `/{id}` | Any staff | Filter by status, member, plan, date range |
+| POST | `/api/subscriptions` | Admin, Manager, Receptionist | Creates subscription + payment atomically |
+| POST | `/api/subscriptions/{id}/cancel` \| `freeze` \| `unfreeze` | Admin, Manager | State transitions |
+| POST | `/api/attendance/check-in` | Admin, Manager, Receptionist | Validates active subscription for that gym |
+| GET | `/api/attendance/gym/{gymId}`, `/history/{memberId}` | Admin, Manager | Paginated |
+
+**Example — paginated member search:**
+
+```
+GET /api/members?PageNumber=1&PageSize=10&SearchTerm=ahmed&GymId=3
+```
+
+```json
+{
+  "items": [ /* MemberDto[] */ ],
+  "totalCount": 47,
+  "currentPage": 1,
+  "pageSize": 10,
+  "totalPages": 5,
+  "hasNextPage": true,
+  "hasPreviousPage": false
+}
+```
+
+---
+
+## Auth
+
+Login issues a short-lived **JWT access token** and a **refresh token**. `POST /api/auth/refresh` exchanges a valid refresh token for a new pair. Refresh tokens are generated using `RandomNumberGenerator` and stored only as **SHA-256 hashes** — the raw token is never persisted.
+
+**Rotation is single-use and race-safe.** Refreshing performs an atomic conditional update (`UPDATE ... WHERE Id = @id AND RevokedOn IS NULL AND ExpiresOn > <current UTC time>`), so two concurrent requests can't both successfully reuse the same token — only one wins the update. Revocation is committed independently of issuing the new pair: if issuance fails after the old token is revoked, that revocation is **not rolled back**, so a failed issuance can never re-validate an already-revoked token.
+
+**Reuse is treated as theft.** If a refresh token that was already revoked (and not simply expired) is presented again, all active refresh tokens for that user are revoked, forcing re-authentication. This is user-wide, not session- or device-specific — reuse detected on one compromised session revokes every session, including unaffected devices — since reuse detection can't currently tell which session was compromised, and a rare transient failure during issuance can leave a revoked-but-not-replaced token. Both trade-offs favor security over convenience.
+
+**Roles are seeded and claim-based:** `Admin` can do everything plus structural/destructive actions (delete a gym or plan, register new staff); `Manager` handles revenue-affecting actions (create plans, cancel/freeze/unfreeze subscriptions); `Receptionist` covers front-desk actions (enroll members, sell subscriptions, check members in). Reads are open to any authenticated staff role, and `/api/auth/login` is rate-limited to blunt credential-stuffing attempts.
 
 ---
 
@@ -212,57 +271,42 @@ Logging is applied deliberately, not everywhere — routine CRUD reads and write
 
 ---
 
-## API surface
+## API Versioning
 
-| Method | Endpoint | Auth | Notes |
-|---|---|---|---|
-| POST | `/api/auth/login` | — | Rate-limited |
-| POST | `/api/auth/register` | Admin | |
-| POST | `/api/auth/refresh` | — | Rotates refresh token |
-| GET | `/api/gyms`, `/api/gyms/{id}` | Any staff | |
-| POST/PUT/DELETE | `/api/gyms` | Admin | Soft delete |
-| GET | `/api/members` | Any staff | Paginated, searchable, filterable by gym |
-| POST | `/api/members` | Any staff | Enqueues a welcome email in the background (see [Background jobs](#background-jobs)) |
-| PUT/DELETE | `/api/members/{id}` | Admin | |
-| GET | `/api/plans`, `/api/plans/{id}` | Any staff | Cached — `IMemoryCache` (see [Caching](#caching)) |
-| GET | `/api/plans/gym/{gymId}` | Any staff | Cached — Redis (see [Caching](#caching)) |
-| POST/PUT | `/api/plans` | Admin, Manager | Invalidates cache across both backends |
-| DELETE | `/api/plans/{id}` | Admin | Soft delete, invalidates cache across both backends |
-| GET | `/api/subscriptions`, `/{id}` | Any staff | Filter by status, member, plan, date range |
-| POST | `/api/subscriptions` | Admin, Manager, Receptionist | Creates subscription + payment atomically |
-| POST | `/api/subscriptions/{id}/cancel` \| `freeze` \| `unfreeze` | Admin, Manager | State transitions |
-| POST | `/api/attendance/check-in` | Admin, Manager, Receptionist | Validates active subscription for that gym |
-| GET | `/api/attendance/gym/{gymId}`, `/history/{memberId}` | Admin, Manager | Paginated |
+Integrated on `MembersController` using `Asp.Versioning.Mvc`, with **v1 and v2 coexisting on the same endpoint** to demonstrate the actual purpose of API versioning: evolving an API contract while keeping the previous version available for existing clients.
 
-**Example — paginated member search:**
+- `GET /api/v1/members/{id}` — original member response shape, preserved for existing clients
+- `GET /api/v2/members/{id}` — enriched response including the member's active subscription status and end date
 
-```
-GET /api/members?PageNumber=1&PageSize=10&SearchTerm=ahmed&GymId=3
-```
+Both versions share the same underlying `MemberService`, while the controller maps each API version to its corresponding service method and DTO. The v2 response extends the v1 shape with additional information rather than restructuring the existing contract.
 
-```json
-{
-  "items": [ /* MemberDto[] */ ],
-  "totalCount": 47,
-  "currentPage": 1,
-  "pageSize": 10,
-  "totalPages": 5,
-  "hasNextPage": true,
-  "hasPreviousPage": false
-}
-```
+Undefined versions (e.g. `v3`) are rejected by the API versioning/routing configuration, confirming that versioning is enforced rather than being purely cosmetic.
+
+> **Scope:** Versioning is demonstrated end-to-end on `MembersController`. It is intentionally not rolled out across every controller, as doing so would repeat the same configuration without adding further conceptual value. The same pattern can be applied to the remaining controllers when required.
 
 ---
 
-## Business rules
+## Health Checks
 
-- Subscription transitions are guarded: only `Active` can freeze, only `Frozen` can unfreeze
-- Freeze duration capped at 1–90 days
-- A member can't hold two active subscriptions to the same plan
-- Gym capacity can't be exceeded — enforced under `Serializable` isolation, see [Concurrency handling](#concurrency-handling)
-- Check-in is rejected if the subscription is frozen/expired/cancelled, or belongs to a different gym
-- Member emails are unique, enforced by a DB index, not just application logic
-- Active subscriptions past their end date are expired automatically by the hourly background job, not on-demand when the record happens to be read (see [Background jobs](#background-jobs))
+Integrated ASP.NET Core Health Checks with a `/health` endpoint that verifies the availability of the application's critical infrastructure dependency:
+
+- **SQL Server** — checked for database connectivity and treated as a critical dependency
+- **Redis** — checked as a non-critical dependency and reported as `Degraded` if unavailable, since Redis is used for caching and the application can fall back to the database
+
+The endpoint aggregates the registered checks into an overall health status:
+
+- `Healthy` → all required dependencies are available
+- `Degraded` → the application is operational but a non-critical dependency (e.g. Redis) is unavailable
+- `Unhealthy` → a critical dependency (e.g. SQL Server) is unavailable
+
+The implementation also distinguishes between **liveness** and **readiness** concepts:
+
+- **Liveness** answers: *"Is the application process alive and responsive?"*
+- **Readiness** answers: *"Is the application ready to serve real traffic and access its required dependencies?"*
+
+Health check **tags** and **predicates** can be used to expose different sets of checks for these purposes, allowing critical dependencies to participate in readiness checks without unnecessarily causing the application to be restarted when a non-critical service such as Redis is unavailable.
+
+> **Scope:** Health Checks are implemented to validate the application's infrastructure health, with SQL Server treated as critical and Redis as a non-critical caching dependency. The implementation focuses on the core production-readiness concept without adding unnecessary Kubernetes-specific probe infrastructure.
 
 ---
 
