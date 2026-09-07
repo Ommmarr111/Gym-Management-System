@@ -5,6 +5,7 @@ using GymManagementSystem.Application.Exceptions;
 using GymManagementSystem.Application.Extensions;
 using GymManagementSystem.Application.Interfaces;
 using GymManagementSystem.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
 
@@ -158,6 +159,29 @@ namespace GymManagementSystem.Application.Services
 
             await _unitOfWork.Members.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<MemberDetailsWithSubscriptionDto> GetMemberByIdWithSubscriptionStatusAsync(int id)
+        {
+            var member = await _unitOfWork.Members.GetByIdAsync(id);
+
+            if (member == null)
+                throw new NotFoundException($"Member with id = {id} not found");
+
+            var dto = _mapper.Map<MemberDetailsWithSubscriptionDto>(member);
+
+            var activeSubscription = await _unitOfWork.Subscriptions
+                .GetAllAsQueryable()
+                .Where(s => s.MemberId == id && s.Status == "Active")
+                .FirstOrDefaultAsync();
+
+            if (activeSubscription != null)
+            {
+                dto.ActiveSubscriptionStatus = activeSubscription.Status;
+                dto.ActiveSubscriptionEndDate = activeSubscription.EndDate;
+            }
+
+            return dto;
         }
 
     }

@@ -1,4 +1,5 @@
-﻿using GymManagementSystem.Application.BackgroundJobs.Interfaces;
+﻿using Asp.Versioning;
+using GymManagementSystem.Application.BackgroundJobs.Interfaces;
 using GymManagementSystem.Application.DTOs;
 using GymManagementSystem.Application.DTOs.Members;
 using GymManagementSystem.Application.Interfaces;
@@ -8,8 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.Api.Controllers
 {
-    [Route("api/members")]
     [ApiController]
+    [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
+    [Route("api/v{version:apiVersion}/members")]
     public class MembersController : ControllerBase
     {
         private readonly IMemberService _service;
@@ -28,12 +31,22 @@ namespace GymManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [MapToApiVersion("1.0")]
         [Authorize]
         public async Task<IActionResult> GetById(int id)
         {
             var member = await _service.GetMemberByIdAsync(id);
             return Ok(member);
         }
+
+        [HttpGet("{id}")]
+        [MapToApiVersion("2.0")]
+        public async Task<IActionResult> GetByIdV2(int id)
+        {
+            var member = await _service.GetMemberByIdWithSubscriptionStatusAsync(id);
+            return Ok(member);
+        }
+
 
         [HttpPost]
         [Authorize]

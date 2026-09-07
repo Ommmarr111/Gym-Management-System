@@ -11,5 +11,7 @@ namespace GymManagementSystem.Application.Interfaces
         Task<MemberDetailsDto> CreateMemberAsync(CreateMemberDto dto);
         Task UpdateMemberAsync(int id, CreateMemberDto dto);
         Task DeleteMemberAsync(int id);
+
+        Task<MemberDetailsWithSubscriptionDto> GetMemberByIdWithSubscriptionStatusAsync(int id);
     }
 }

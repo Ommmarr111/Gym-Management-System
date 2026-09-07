@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using Asp.Versioning;
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using GymManagementSystem.Api.Middleware;
 using GymManagementSystem.Application.BackgroundJobs;
@@ -20,10 +21,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+
 
 namespace GymManagementSystem.Api
 {
@@ -118,6 +121,21 @@ namespace GymManagementSystem.Api
             {
                 options.Configuration = "localhost:6379";
             });
+
+
+
+            builder.Services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+            })
+            .AddMvc()
+            .AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+            });
+
 
             //  Rate Limiting Service
             builder.Services.AddRateLimiter(options =>
@@ -229,7 +247,23 @@ namespace GymManagementSystem.Api
             {
                 config.AddMaps(typeof(MappingProfile).Assembly);
             });
-            builder.Services.AddSwaggerGen();
+
+
+
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc(
+                    "v1",
+                    new OpenApiInfo
+                    {
+                        Title = "Gym Management API",
+                        Version = "v1"
+                    });
+            });
+
+
+
+
             var app = builder.Build();
 
 
@@ -280,7 +314,14 @@ namespace GymManagementSystem.Api
             app.MapHealthChecks("/health/ready", new HealthCheckOptions
             {
                 Predicate = check => check.Tags.Contains("ready") // readiness = actually checks SQL Server + Redis
-            }); app.UseHangfireDashboard("/hangfire");
+            });
+
+
+
+            app.UseHangfireDashboard("/hangfire");
+
+
+
             RecurringJob.AddOrUpdate<ISubscriptionExpiryJob>("expire-overdue-subscriptions",
                 job => job.ExpireOverdueSubscriptionsAsync(),
                 Cron.Hourly);
